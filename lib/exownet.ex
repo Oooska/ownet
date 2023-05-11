@@ -1,7 +1,7 @@
 defmodule Exownet do
   defstruct [:client, :errors_map]
   use GenServer
-  alias OWClient
+  alias Exownet.OWClient
 
   @moduledoc """
   Documentation for `Exownet`.
@@ -47,17 +47,12 @@ defmodule Exownet do
   end
 
   def read_float(path, opts \\ []) do
-    with {:ok, value} <- read(path, opts) do
-      try do
-        float =
-          value
-          |> String.trim()
-          |> String.to_float()
-
-        {:ok, float}
-      rescue
-        _ -> {:error, "Invalid float value"}
-      end
+    with {:ok, value} <- read(path, opts),
+         {float, _} <- parse_float(value) do
+          {:ok, float}
+    else
+      :error -> {:error, "Not a float"}
+      error -> error
     end
   end
 
@@ -157,6 +152,12 @@ defmodule Exownet do
       {:error, reason} ->
         {:reply, {:error, reason}, exownet}
     end
+  end
+
+  defp parse_float(value) do
+    value
+    |> String.trim
+    |> Float.parse
   end
 
 

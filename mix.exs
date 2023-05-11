@@ -6,6 +6,8 @@ defmodule Exownet.MixProject do
       app: :exownet,
       version: "0.1.0",
       elixir: "~> 1.14",
+      name: "exownet",
+      description: "An OWFS/owserver client library",
       start_permanent: Mix.env() == :prod,
       deps: deps()
     ]
@@ -13,9 +15,7 @@ defmodule Exownet.MixProject do
 
   # Run "mix help compile.app" to learn about applications.
   def application do
-    [
-      extra_applications: [:logger]
-    ]
+    []
   end
 
   # Run "mix help deps" to learn about dependencies.

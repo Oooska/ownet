@@ -1,5 +1,5 @@
 
-defmodule OWClient.OWPacket do
+defmodule Exownet.OWPacket do
   import Bitwise
 
   @message_type %{

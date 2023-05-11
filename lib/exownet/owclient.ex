@@ -1,7 +1,7 @@
 
-defmodule OWClient do
+defmodule Exownet.OWClient do
   defstruct [:address, :port, :flag, :socket, :persistence, :errors_map, :verbose]
-  alias OWClient.OWPacket
+  alias Exownet.OWPacket
 
   @type t :: %__MODULE__{
           address: charlist,
