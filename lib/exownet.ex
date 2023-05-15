@@ -82,75 +82,75 @@ defmodule Exownet do
     flags = Keyword.get(opts, :flags, [])
     client = OWClient.new(address, port, flags)
 
-    with {:ok, client, error_payload} <- OWClient.read(client, "/settings/return_codes/text.ALL") do
-      state = %__MODULE__{
-        client: client,
-        errors_map: parse_error_codes(error_payload)
-      }
+    case OWClient.read(client, "/settings/return_codes/text.ALL") do
+      {client, :ok, ret_codes} ->
+        state = %__MODULE__{
+          client: client,
+          errors_map: parse_ret_codes(ret_codes)
+        }
+        {:ok, state}
 
-      {:ok, state}
-    else
-      {:error, reason} when is_integer(reason) ->
+      {_client, :error, reason} when is_integer(reason) ->
         {:reply, {:error, "Unknown error #{reason}"}}
 
-      {:error, reason} ->
-        {:error, reason}
+      {_client, :error, reason} ->
+        {:reply, {:error, reason}}
     end
   end
 
   @impl true
   def handle_call({:ping, flags}, _from, exownet) do
     case OWClient.ping(exownet.client, flags) do
-      {:ok, updated_client} ->
-        {:reply, :ok, %{exownet | client: updated_client}}
+      {client, :ok} ->
+        {:reply, :ok, update_client(exownet, client)}
 
-      {:error, reason} when is_integer(reason) ->
-        {:reply, {:error, Map.get(exownet.errors_map, reason, "Unknown error #{reason}")}, exownet}
+      {client, :error, reason} when is_integer(reason) ->
+        {:reply, {:error, Map.get(exownet.errors_map, reason, "Unknown error #{reason}")}, update_client(exownet, client)}
 
-      {:error, reason} ->
-        {:reply, {:error, reason}, exownet}
+      {client, :error, reason} ->
+        {:reply, {:error, reason}, update_client(exownet, client)}
     end
   end
 
   @impl true
   def handle_call({:dir, path, flags}, _from, exownet) do
     case OWClient.dir(exownet.client, path, flags) do
-      {:ok, updated_client, values} ->
-        {:reply, {:ok, values}, %{exownet | client: updated_client}}
+      {client, :ok, values} ->
+        {:reply, {:ok, values}, update_client(exownet, client)}
 
-      {:error, reason} when is_integer(reason) ->
-        {:reply, {:error, Map.get(exownet.errors_map, reason, "Unknown error #{reason}")}, exownet}
+      {client, :error, reason} when is_integer(reason) ->
+        {:reply, {:error, Map.get(exownet.errors_map, reason, "Unknown error #{reason}")}, update_client(exownet, client)}
 
-      {:error, reason} ->
-        {:reply, {:error, reason}, exownet}
+      {client, :error, reason} ->
+        {:reply, {:error, reason}, update_client(exownet, client)}
     end
   end
 
   @impl true
   def handle_call({:read, path, flags}, _from, exownet) do
     case OWClient.read(exownet.client, path, flags) do
-      {:ok, updated_client, values} ->
-        {:reply, {:ok, values}, %{exownet | client: updated_client}}
+      {client, :ok, values} ->
+        {:reply, {:ok, values}, update_client(exownet, client)}
 
-      {:error, reason} when is_integer(reason) ->
-        {:reply, {:error, Map.get(exownet.errors_map, reason, "Unknown error #{reason}")}, exownet}
+      {client, :error, reason} when is_integer(reason) ->
+        {:reply, {:error, Map.get(exownet.errors_map, reason, "Unknown error #{reason}")}, update_client(exownet, client)}
 
-      {:error, reason} ->
-        {:reply, {:error, reason}, exownet}
+      {client, :error, reason} ->
+        {:reply, {:error, reason}, update_client(exownet, client)}
     end
   end
 
   @impl true
   def handle_call({:write, path, value, flags}, _from, exownet) do
     case OWClient.write(exownet.client, path, value, flags) do
-      {:ok, updated_client, values} ->
-        {:reply, {:ok, values}, %{exownet | client: updated_client}}
+      {client, :ok} ->
+        {:reply, :ok, update_client(exownet, client)}
 
-      {:error, reason} when is_integer(reason) ->
-        {:reply, {:error, Map.get(exownet.errors_map, reason, "Unknown error #{reason}")}, exownet}
+      {client, :error, reason} when is_integer(reason) ->
+        {:reply, {:error, Map.get(exownet.errors_map, reason, "Unknown error #{reason}")}, update_client(exownet, client)}
 
-      {:error, reason} ->
-        {:reply, {:error, reason}, exownet}
+      {client, :error, reason} ->
+        {:reply, {:error, reason}, update_client(exownet, client)}
     end
   end
 
@@ -160,9 +160,12 @@ defmodule Exownet do
     |> Float.parse
   end
 
+  defp update_client(exownet, client) do
+    %{exownet|client: client}
+  end
 
   # charlist :: map(integer: string.t)
-  defp parse_error_codes(codes) do
+  defp parse_ret_codes(codes) do
     # Create a lookup map of error codes.
     # codes= 'Good result,Startup - command line parameters invalid,legacy - No such en opened,...'
     # res = %{0: "Good result", 1: "Startup - command line parameters invalid", 2: "legacy - No such en opened", ...}
