@@ -2,12 +2,11 @@
 defmodule Exownet.OWPacket do
   import Bitwise
 
-
   @moduledoc false
 
   # The `Exownet.OWPacket` module provides functionality for creating and manipulating owserver (One-Wire File System) packets.
   #
-  # This module allows you to create packets with `create_packet/5`, update packet flags with `update_flag/2`, and check for granted persistence with `persistence_granted?/1`.
+  # This module allows you to create packets with `create_packet/5`, create packet flags with `calculate_flag/2`, and check for granted persistence with `persistence_granted?/1`.
   #
   # The module also provides several decoding utilities:
   # - `decode_outgoing_packet_header/1`
@@ -130,8 +129,8 @@ defmodule Exownet.OWPacket do
     header <> payload
   end
 
-  @spec update_flag(flag_list(), integer()) :: integer()
-  def update_flag(flags, current_value \\ 0) do
+  @spec calculate_flag(flag_list(), integer()) :: integer()
+  def calculate_flag(flags, current_value \\ 0) do
     # Takes a list of flags and the current flag value, and computes a new flag value.
     # This will allow you to set invalid flag combinations (e.g. setting multiple temperature scales)
     Enum.reduce(flags, current_value, fn flag, acc -> @flags[flag] ||| acc end)
