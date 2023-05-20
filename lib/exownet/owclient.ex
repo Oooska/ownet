@@ -19,14 +19,14 @@ defmodule Exownet.OWClient do
     end
   end
 
-  @spec present(:gen_tcp.socket(), String.t, OWPacket.flag_list()) ::{:ok, binary(), boolean()} | error_tuple()
+  @spec present(:gen_tcp.socket(), String.t, OWPacket.flag_list()) ::{:ok, boolean(), boolean()} | error_tuple()
   def present(socket, path, flags \\ []) do
     flags = OWPacket.calculate_flag(flags, 0)
     req_packet = OWPacket.create_packet(:PRESENT, path <> <<0>>, flags)
 
     case send_and_receive_response(socket, req_packet) do
       {:ok, _header, _payload, persistence} -> {:ok, true, persistence}
-      {:error, ret_code, persistence} when is_integer(ret_code) -> {:ok, false, persistence}
+      {:ownet_error, ret_code, persistence} when is_integer(ret_code) -> {:ok, false, persistence}
       error -> error
     end
   end
@@ -48,6 +48,7 @@ defmodule Exownet.OWClient do
     end
   end
 
+  @spec read(:gen_tcp.socket(), String.t(), OWPacket.flag_list()) :: {:ok, binary(), boolean()} |  error_tuple()
   def read(socket, path, flags \\ []) do
     flags = OWPacket.calculate_flag(flags, 0)
     req_packet = OWPacket.create_packet(:READ, path <> <<0>>, flags, @maxsize, 0)
@@ -58,6 +59,7 @@ defmodule Exownet.OWClient do
     end
   end
 
+  @spec write(:gen_tcp.socket(), String.t(), binary() | String.t() | boolean() | :on | :off, OWPacket.flag_list()) :: {:ok, boolean()} |  error_tuple()
   def write(socket, path, value, flags \\ [])
   def write(socket, path, true, flags), do: write(socket, path, <<?1>>, flags)
   def write(socket, path, :on, flags), do: write(socket, path, <<?1>>, flags)
@@ -68,7 +70,7 @@ defmodule Exownet.OWClient do
     payload = path <> <<0>> <> value
     req_packet = OWPacket.create_packet(:WRITE, payload, flags, byte_size(value), 0)
     case send_and_receive_response(socket, req_packet) do
-      {:ok, _header, payload, persistence} -> {:ok, payload, persistence}
+      {:ok, _header, _payload, persistence} -> {:ok, persistence}
       error -> error
     end
   end

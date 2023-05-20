@@ -35,6 +35,13 @@ defmodule Exownet do
     GenServer.call(name, {:ping, flags})
   end
 
+  def present(path, opts \\ []) do
+    name = Keyword.get(opts, :name, __MODULE__)
+    flags = Keyword.get(opts, :flags, [])
+    GenServer.call(name, {:present, path, flags})
+  end
+
+  @spec dir(String.t(), Keyword.t()) :: {:ok, list(String.t())} | {:error, atom()}
   def dir(path \\ "/", opts \\ []) do
     name = Keyword.get(opts, :name, __MODULE__)
     flags = Keyword.get(opts, :flags, [])
@@ -112,9 +119,9 @@ defmodule Exownet do
 
   @impl true
   def handle_call({:ping, flags}, _from, state) do
-    case do_ping(state, flags++state.flags) do
+    case do_ping(state, flags ++ state.flags) do
       {socket, {:ok, persistence}} -> reply(:ok, state, socket, persistence)
-      {socket, {:error, reason, persistence}} -> reply({:error, reason}, state, socket, persistence)
+      {socket, {:ownet_error, reason, persistence}} -> reply({:error, reason}, state, socket, persistence)
       {:error, _reason} -> raise "Connection error"
     end
 
@@ -122,14 +129,39 @@ defmodule Exownet do
   end
 
   @impl true
-  def handle_call({:dir, path, flags}, _form, state) do
-    case do_dir(path, state, flags++state.flags) do
-      {socket, {:ok, paths, persistence}} -> reply({:ok, paths}, state, socket, persistence)
-      {socket, {:error, reason, persistence}} -> reply({:error, reason}, state, socket, persistence)
-      {:error, _reason} -> raise "Connection error"
+  def handle_call({:present, path, flags}, _from, state) do
+    case do_present(state, path, flags ++ state.flags) do
+      {socket, {:ok, present, persistence}} -> reply({:ok, present}, state, socket, persistence)
+      {:error, reason} -> reply({:error, reason}, state, nil, false)
     end
   end
 
+  @impl true
+  def handle_call({:dir, path, flags}, _from, state) do
+    case do_dir(path, state, flags ++ state.flags) do
+      {socket, {:ok, paths, persistence}} -> reply({:ok, paths}, state, socket, persistence)
+      {socket, {:ownet_error, reason, persistence}} -> reply({:error, reason}, state, socket, persistence)
+      {:error, reason} -> reply({:error, reason}, state, nil, false)
+    end
+  end
+
+  @impl true
+  def handle_call({:read, path, flags}, _from, state) do
+    case do_read(path, state, flags ++ state.flags) do
+      {socket, {:ok, value, persistence}} -> reply({:ok, value}, state, socket, persistence)
+      {socket, {:ownet_error, reason, persistence}} -> reply({:error, reason}, state, socket, persistence)
+      {:error, reason} -> reply({:error, reason}, state, nil, false)
+    end
+  end
+
+@impl true
+def handle_call({:write, path, value, flags}, _from, state) do
+  case do_write(path, state, value, flags ++ state.flags) do
+    {socket, {:ok, persistence}} -> reply(:ok, state, socket, persistence)
+    {socket, {:ownet_error, reason, persistence}} -> reply({:error, reason}, state, socket, persistence)
+    {:error, reason} -> reply({:error, reason}, state, nil, false)
+  end
+end
 
 
   defp reply(value, state, socket, persistence) do
@@ -144,6 +176,13 @@ defmodule Exownet do
     end
   end
 
+  defp do_present(state, path, flags) do
+    case get_socket(state) do
+      {:ok, socket} -> {socket, OWClient.present(socket, path, flags)}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
   defp do_dir(path, state, flags) do
     case get_socket(state) do
       {:ok, socket} -> {socket, OWClient.dir(socket, path, flags)}
@@ -151,18 +190,32 @@ defmodule Exownet do
     end
   end
 
+  defp do_read(path, state, flags) do
+    case get_socket(state) do
+      {:ok, socket} -> {socket, OWClient.read(socket, path, flags)}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp do_write(path, state, value, flags) do
+    case get_socket(state) do
+      {:ok, socket} -> {socket, OWClient.write(socket, path, value, flags)}
+      {:error, reason} -> {:error, reason}
+    end
+  end
 
   defp update_socket_state(state, socket, persistence)
+
+  defp update_socket_state(state, nil, _) do
+    %{state|socket: nil}
+  end
+
   defp update_socket_state(state, socket, true) do
       %{state|socket: socket}
   end
 
   defp update_socket_state(state, socket, false) do
     Socket.close(socket)
-    %{state|socket: nil}
-  end
-
-  defp update_socket_state(state, nil, _) do
     %{state|socket: nil}
   end
 

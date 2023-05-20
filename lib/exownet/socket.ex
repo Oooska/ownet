@@ -5,10 +5,17 @@ defmodule Exownet.Socket do
   @callback close(:gen_tcp.socket()) :: :ok
   @callback connect(charlist, integer, :gen_tcp.opts()) :: {:ok, :gen_tcp.socket()} | {:error, :inet.posix()}
 
+  @spec send(:gen_tcp.socket(), binary()) :: :ok | {:error, :inet.posix()}
   def send(socket, data), do: impl().send(socket, data)
+
+  @spec recv(:gen_tcp.socket(), integer()) :: {:ok, binary()} | {:error, :inet.posix()}
   def recv(socket, num_bytes), do: impl().recv(socket, num_bytes)
+
+  @spec close(:gen_tcp.socket()) :: :ok
   def close(socket), do: impl().close(socket)
+
+  @spec connect(charlist, integer, :gen_tcp.opts()) :: {:ok, :gen_tcp.socket()} | {:error, :inet.posix()}
   def connect(addr, port, opts), do: impl().connect(addr, port, opts)
 
-  def impl, do: Application.get_env(:Exownet, :socket, :gen_tcp)
+  defp impl, do: Application.get_env(:Exownet, :socket, :gen_tcp)
 end
