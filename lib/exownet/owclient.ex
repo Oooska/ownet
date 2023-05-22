@@ -1,4 +1,5 @@
 defmodule Exownet.OWClient do
+  require Logger
   alias Exownet.OWPacket
   alias Exownet.Socket
 
@@ -7,6 +8,7 @@ defmodule Exownet.OWClient do
   @type socket_error :: {:error, :inet.posix()}
   @type ownet_error :: {:ownet_error, integer(), boolean()}
   @type error_tuple :: socket_error | ownet_error
+
 
   @spec ping(:gen_tcp.socket(), OWPacket.flag_list()) :: {:ok, boolean()} | error_tuple()
   def ping(socket, flags \\ []) do
@@ -61,10 +63,10 @@ defmodule Exownet.OWClient do
 
   @spec write(:gen_tcp.socket(), String.t(), binary() | String.t() | boolean() | :on | :off, OWPacket.flag_list()) :: {:ok, boolean()} |  error_tuple()
   def write(socket, path, value, flags \\ [])
-  def write(socket, path, true, flags), do: write(socket, path, <<?1>>, flags)
-  def write(socket, path, :on, flags), do: write(socket, path, <<?1>>, flags)
-  def write(socket, path, false, flags), do: write(socket, path, <<?0>>, flags)
-  def write(socket, path, :off, flags), do: write(socket, path, <<?0>>, flags)
+  def write(socket, path, true, flags), do: write(socket, path, "1", flags)
+  def write(socket, path, :on, flags), do: write(socket, path, "1", flags)
+  def write(socket, path, false, flags), do: write(socket, path, "0", flags)
+  def write(socket, path, :off, flags), do: write(socket, path, "0", flags)
   def write(socket, path, value, flags) do
     flags = OWPacket.calculate_flag(flags, 0)
     payload = path <> <<0>> <> value
@@ -77,7 +79,7 @@ defmodule Exownet.OWClient do
 
   @spec send_and_receive_response(:gen_tcp.socket(), OWPacket.packet()) :: {:ok, OWPacket.header(), binary(), boolean()} | error_tuple
   defp send_and_receive_response(socket, packet) do
-    with :ok <- Socket.send(socket, packet),
+    with :ok <- send_message(socket, packet),
          {:ok, header, payload, persistence} <- receive_next_message(socket) do
       {:ok, header, payload, persistence}
     end
@@ -85,10 +87,16 @@ defmodule Exownet.OWClient do
 
   @spec send_and_receive_response_with_payload(:gen_tcp.socket(), OWPacket.packet()) :: {:ok, OWPacket.header(), binary(), boolean()} | error_tuple
   defp send_and_receive_response_with_payload(socket, packet) do
-    with :ok <- Socket.send(socket, packet),
+    with :ok <- send_message(socket, packet),
          {:ok, header, payload, persistence} <- receive_next_message_with_payload(socket) do
       {:ok, header, payload, persistence}
     end
+  end
+
+  @spec send_message(:gen_tcp.socket(), binary()) :: :ok | socket_error
+  defp send_message(socket, packet) do
+    Logger.debug("Sending message: #{inspect(OWPacket.decode_outgoing_packet_header(packet), binaries: :as_strings)}")
+    Socket.send(socket, packet)
   end
 
   @spec receive_next_message(:gen_tcp.socket()) :: {:ok, OWPacket.header(), binary(), boolean()} | error_tuple
@@ -96,6 +104,8 @@ defmodule Exownet.OWClient do
     with {:ok, header} <- receive_header(socket),
          {:ok, header, payload} <- receive_payload(socket, header) do
 
+
+      Logger.debug("Received message: #{inspect(OWPacket.decode_incoming_packet_header(header<>payload), binaries: :as_strings)}")
       ret_code = OWPacket.return_code(header)
       if ret_code >= 0 do
         #IO.inspect({OWPacket.decode_incoming_packet_header(header), payload}, label: "ret code >= 0", binaries: :as_strings)
@@ -116,7 +126,6 @@ defmodule Exownet.OWClient do
       {:error, reason} -> {:error, reason}
     end
   end
-
 
   @spec receive_header(:gen_tcp.socket()) :: {:ok, OWPacket.header()} | socket_error()
   defp receive_header(socket) do

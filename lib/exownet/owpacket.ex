@@ -36,7 +36,8 @@ defmodule Exownet.OWPacket do
     :type => integer(),
     :flag => integer(),
     :size => integer(),
-    :offset => integer()
+    :offset => integer(),
+    :payload => binary()
   }
 
   @type decoded_incoming_packet_header :: %{
@@ -45,7 +46,8 @@ defmodule Exownet.OWPacket do
     :payloadsize => integer(),
     :ret => integer(),
     :size => integer(),
-    :version => integer()
+    :version => integer(),
+    :payload => binary()
   }
 
   @version 0
@@ -172,7 +174,7 @@ defmodule Exownet.OWPacket do
     # Returns a map representation of an outgoing header.
     <<version::32-integer-signed-big, payloadsize::32-integer-signed-big,
       type::32-integer-signed-big, flag::32-integer-signed-big, size::32-integer-signed-big,
-      offset::32-integer-signed-big>> = data
+      offset::32-integer-signed-big, payload::binary>> = data
 
     %{
       version: version,
@@ -180,7 +182,8 @@ defmodule Exownet.OWPacket do
       type: type,
       flag: flag,
       size: size,
-      offset: offset
+      offset: offset,
+      payload: payload
     }
   end
 
@@ -189,7 +192,7 @@ defmodule Exownet.OWPacket do
     # Returns a map representation of an incoming header.
     <<version::32-integer-signed-big, payloadsize::32-integer-signed-big,
       ret::32-integer-signed-big, flag::32-integer-signed-big, size::32-integer-signed-big,
-      offset::32-integer-signed-big>> = data
+      offset::32-integer-signed-big, payload::binary>> = data
 
     %{
       version: version,
@@ -197,7 +200,8 @@ defmodule Exownet.OWPacket do
       ret: ret,
       flag: flag,
       size: size,
-      offset: offset
+      offset: offset,
+      payload: payload
     }
   end
 end

@@ -1,22 +1,17 @@
 defmodule Exownet do
   defstruct [:address, :port, :flags, :socket, :errors_map]
   use GenServer
+  require Logger
+
   alias Exownet.OWClient
   alias Exownet.Socket
 
   @moduledoc """
   Documentation for `Exownet`.
-  """
-
-  @doc """
-  Hello world.
 
   ## Examples
-
-      iex> Exownet.hello()
-      :world
-
   """
+
 
   @type t :: %__MODULE__{
     address: charlist(),
@@ -32,8 +27,7 @@ defmodule Exownet do
 
   def start_link(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
-    flags = Keyword.get(opts, :flags, [:persistence])
-    GenServer.start_link(__MODULE__, opts, name: name, flags: flags)
+    GenServer.start_link(__MODULE__, opts, name: name)
   end
 
   def ping(opts \\ []) do
@@ -74,8 +68,8 @@ defmodule Exownet do
   def read_bool(path, opts \\ []) do
     with {:ok, value} <- read(path, opts) do
       case value do
-        <<?0>> -> {:ok, false}
-        <<?1>> -> {:ok, true}
+        "0" -> {:ok, false}
+        "1" -> {:ok, true}
         "false" -> {:ok, false}
         "true" -> {:ok, true}
         _ -> {:error, "Not a boolean"}
@@ -94,8 +88,7 @@ defmodule Exownet do
   def init(opts) do
     address = to_charlist(Keyword.get(opts, :address, 'localhost'))
     port = Keyword.get(opts, :port, 4304)
-    flags = Keyword.get(opts, :flags, [])
-    #socket = Socket.connect(address, port, [:binary, active: false])
+    flags = Keyword.get(opts, :flags, [:persistence, :uncached])
 
     state = %__MODULE__{
       address: address,
@@ -107,8 +100,11 @@ defmodule Exownet do
 
     case read_error_codes(state) do
       {:ok, state} -> {:ok, state}
-      {:ownet_error, _reason, state} -> {:ok, state}
-      {:error, _reason} -> {:ok, state}
+      {:ownet_error, reason, state} -> {:ok, state}
+        Logger.error("Unable to read error status codes: #{reason}")
+      {:error, reason} ->
+        Logger.error("Unable to connect to connect to owserver: #{reason}")
+        {:ok, state}
     end
   end
 
