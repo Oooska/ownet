@@ -98,10 +98,10 @@ defmodule Exownet.OWClient do
 
       ret_code = OWPacket.return_code(header)
       if ret_code >= 0 do
-        IO.inspect({OWPacket.decode_incoming_packet_header(header), payload}, label: "ret code >= 0", binaries: :as_strings)
+        #IO.inspect({OWPacket.decode_incoming_packet_header(header), payload}, label: "ret code >= 0", binaries: :as_strings)
         {:ok, header, payload, OWPacket.persistence_granted?(header)}
       else
-        IO.inspect({OWPacket.decode_incoming_packet_header(header), payload}, label: "ret code != 0", binaries: :as_strings)
+        #IO.inspect({OWPacket.decode_incoming_packet_header(header), payload}, label: "ret code != 0", binaries: :as_strings)
         {@ownet_error, -ret_code, OWPacket.persistence_granted?(header)}
       end
     end

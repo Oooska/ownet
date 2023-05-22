@@ -18,15 +18,22 @@ defmodule Exownet do
 
   """
 
+  @type t :: %__MODULE__{
+    address: charlist(),
+    port: integer(),
+    flags: OWPacket.flag_list(),
+    socket: :gen_tcp.socket() | nil,
+    errors_map: %{integer() => String.t()}
+  }
+
+  @error_codes_path "/settings/return_codes/text.ALL"
+
   # Client API
-  def start(address \\ 'localhost', port \\ 4304, flags \\ [:persistence, :uncached], opts \\ [])
-  def start(address, port, flags, opts) do
-    start_link([address: address, port: port, flags: flags] ++ opts)
-  end
 
   def start_link(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
-    GenServer.start_link(__MODULE__, opts, name: name)
+    flags = Keyword.get(opts, :flags, [:persistence])
+    GenServer.start_link(__MODULE__, opts, name: name, flags: flags)
   end
 
   def ping(opts \\ []) do
@@ -90,31 +97,19 @@ defmodule Exownet do
     flags = Keyword.get(opts, :flags, [])
     #socket = Socket.connect(address, port, [:binary, active: false])
 
-    {:ok, %__MODULE__{
+    state = %__MODULE__{
       address: address,
       port: port,
       flags: flags,
       socket: nil,
       errors_map: %{}
-    }}
+    }
 
-    #case OWClient.read(socket, "/settings/return_codes/text.ALL", flags) do
-    #  {:ok, ret_codes, persistence} ->
-    #    state = %__MODULE__{
-    #      address: address,
-    #      port: port,
-    #      flags: flags,
-    #      socket: (if persistence, do: socket, else: nil),
-    #      errors_map: parse_ret_codes(ret_codes)
-    #    }
-    #    {:ok, state}
-#
-    #  {:error, reason, _persistence} when is_integer(reason) ->
-    #    {:error, "Unknown error #{reason}"}
-#
-    #  {_client, :error, reason} ->
-    #    {:error, reason}
-    #end
+    case read_error_codes(state) do
+      {:ok, state} -> {:ok, state}
+      {:ownet_error, _reason, state} -> {:ok, state}
+      {:error, _reason} -> {:ok, state}
+    end
   end
 
   @impl true
@@ -122,10 +117,8 @@ defmodule Exownet do
     case do_ping(state, flags ++ state.flags) do
       {socket, {:ok, persistence}} -> reply(:ok, state, socket, persistence)
       {socket, {:ownet_error, reason, persistence}} -> reply({:error, reason}, state, socket, persistence)
-      {:error, _reason} -> raise "Connection error"
+      {:error, reason} -> reply({:error, reason}, state, nil, false)
     end
-
-    #Map.get(state.errors_map, reason, "Unknown error #{reason}")}
   end
 
   @impl true
@@ -140,7 +133,7 @@ defmodule Exownet do
   def handle_call({:dir, path, flags}, _from, state) do
     case do_dir(path, state, flags ++ state.flags) do
       {socket, {:ok, paths, persistence}} -> reply({:ok, paths}, state, socket, persistence)
-      {socket, {:ownet_error, reason, persistence}} -> reply({:error, reason}, state, socket, persistence)
+      {socket, {:ownet_error, reason, persistence}} -> reply({:error, lookup_error(state, reason)}, state, socket, persistence)
       {:error, reason} -> reply({:error, reason}, state, nil, false)
     end
   end
@@ -149,25 +142,23 @@ defmodule Exownet do
   def handle_call({:read, path, flags}, _from, state) do
     case do_read(path, state, flags ++ state.flags) do
       {socket, {:ok, value, persistence}} -> reply({:ok, value}, state, socket, persistence)
-      {socket, {:ownet_error, reason, persistence}} -> reply({:error, reason}, state, socket, persistence)
+      {socket, {:ownet_error, reason, persistence}} -> reply({:error, lookup_error(state, reason)}, state, socket, persistence)
       {:error, reason} -> reply({:error, reason}, state, nil, false)
     end
   end
 
-@impl true
-def handle_call({:write, path, value, flags}, _from, state) do
-  case do_write(path, state, value, flags ++ state.flags) do
-    {socket, {:ok, persistence}} -> reply(:ok, state, socket, persistence)
-    {socket, {:ownet_error, reason, persistence}} -> reply({:error, reason}, state, socket, persistence)
-    {:error, reason} -> reply({:error, reason}, state, nil, false)
+  @impl true
+  def handle_call({:write, path, value, flags}, _from, state) do
+    case do_write(path, state, value, flags ++ state.flags) do
+      {socket, {:ok, persistence}} -> reply(:ok, state, socket, persistence)
+      {socket, {:ownet_error, reason, persistence}} -> reply({:error, lookup_error(state, reason)}, state, socket, persistence)
+      {:error, reason} -> reply({:error, reason}, state, nil, false)
+    end
   end
-end
-
 
   defp reply(value, state, socket, persistence) do
     {:reply, value, update_socket_state(state, socket, persistence)}
   end
-
 
   defp do_ping(state, flags) do
     case get_socket(state) do
@@ -204,12 +195,15 @@ end
     end
   end
 
-  defp update_socket_state(state, socket, persistence)
-
+  #ownet sockets may close randomly; the persistence flag in the header
+  #indicates whether the server will keep the socket open.
+  #update_socket_state takes the state, the socket, and whether the
+  #persistence flag was set, and updates the state with the socket, or closes
+  #the socket and sets it to nil.
+  defp update_socket_state(state, socket, persistence?)
   defp update_socket_state(state, nil, _) do
     %{state|socket: nil}
   end
-
   defp update_socket_state(state, socket, true) do
       %{state|socket: socket}
   end
@@ -219,6 +213,9 @@ end
     %{state|socket: nil}
   end
 
+  #ownet sockets might close randomly, so a nil socket is not an error condition.
+  #get_socket returns the state's socket if it's connected, otherwise opens a new
+  #socket to the server.
   defp get_socket(state) when state.socket == nil do
     Socket.connect(state.address, state.port, [:binary, active: false])
   end
@@ -228,66 +225,39 @@ end
   end
 
 
-  # charlist :: map(integer: string.t)
-  defp parse_ret_codes(codes) do
+  #ownet returns an integer error code when a command is invalid. This integer code corresponds to
+  #the index of a list of errors that can be retrieved by reading "/settings/return_codes/text.ALL"
+  #This is attempted in init and stored in errors_map;
+  @spec read_error_codes(t()) :: {:ok, t()} | {:ownet_error, integer(), t()} | {:error, :inet.posix()}
+  defp read_error_codes(state) do
+    case do_read(@error_codes_path, state, []) do
+      {socket, {:ok, value, persistence}} ->
+        state_with_errors = %{state|errors_map: parse_error_codes(value)}
+        {:ok, update_socket_state(state_with_errors, socket, persistence)}
+      {socket, {:ownet_error, reason, persistence}} ->
+        {:ownet_error, reason, update_socket_state(state, socket, persistence)}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp lookup_error(state, index) do
+    Map.get(state.errors_map, index, "Unknown error: #{index}")
+  end
+
+  defp parse_error_codes(codes) do
     # Create a lookup map of error codes.
     # codes= 'Good result,Startup - command line parameters invalid,legacy - No such en opened,...'
     # res = %{0: "Good result", 1: "Startup - command line parameters invalid", 2: "legacy - No such en opened", ...}
     codes
     |> to_string()
     |> String.split(",")
-    # |> Enum.flat_map(&(String.split(&1, "\n"))) #Not sure why \n was appearing in error codes, it shouldn't be there.
     |> Enum.with_index()
     |> Enum.map(fn {k, v} -> {v, k} end)
     |> Enum.into(%{})
   end
 
-
-#
-# @impl true
-# def handle_call({:dir, path, flags}, _from, state) do
-#   case OWClient.dir(state.client, path, flags) do
-#     {client, :ok, values} ->
-#       {:reply, {:ok, values}, update_client(state, client)}
-#
-#     {client, :error, reason} when is_integer(reason) ->
-#       {:reply, {:error, Map.get(state.errors_map, reason, "Unknown error #{reason}")}, update_client(state, client)}
-#
-#     {client, :error, reason} ->
-#       {:reply, {:error, reason}, update_socket_state(state, socket, persistence)}
-#   end
-# end
-#
-# @impl true
-# def handle_call({:read, path, flags}, _from, state) do
-#   case OWClient.read(state.client, path, flags) do
-#     {client, :ok, values} ->
-#       {:reply, {:ok, values}, update_client(state, client)}
-#
-#     {client, :error, reason} when is_integer(reason) ->
-#       {:reply, {:error, Map.get(state.errors_map, reason, "Unknown error #{reason}")}, update_client(state, client)}
-#
-#     {client, :error, reason} ->
-#       {:reply, {:error, reason}, update_socket_state(state, socket, persistence)}
-#   end
-# end
-#
-# @impl true
-# def handle_call({:write, path, value, flags}, _from, state) do
-#   case OWClient.write(state.client, path, value, flags) do
-#     {client, :ok} ->
-#       {:reply, :ok, update_client(state, client)}
-#
-#     {client, :error, reason} when is_integer(reason) ->
-#       {:reply, {:error, Map.get(state.errors_map, reason, "Unknown error #{reason}")}, update_client(state, client)}
-#
-#     {client, :error, reason} ->
-#       {:reply, {:error, reason}, update_client(state, client)}
-#   end
-# end
-#
-
   defp parse_float(value) do
+    #Converts "        23.5" to 23.5
     value
     |> String.trim
     |> Float.parse
