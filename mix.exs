@@ -1,12 +1,12 @@
-defmodule Exownet.MixProject do
+defmodule Ownet.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :exownet,
+      app: :ownet,
       version: "0.1.0",
       elixir: "~> 1.14",
-      name: "exownet",
+      name: "ownet",
       description: "An OWFS/owserver client library",
       start_permanent: Mix.env() == :prod,
       deps: deps()

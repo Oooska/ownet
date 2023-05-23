@@ -1,7 +1,7 @@
-defmodule Exownet.OWClient do
+defmodule Ownet.OWClient do
   require Logger
-  alias Exownet.OWPacket
-  alias Exownet.Socket
+  alias Ownet.OWPacket
+  alias Ownet.Socket
 
   @ownet_error :ownet_error
   @maxsize 65536

@@ -1,13 +1,13 @@
-defmodule Exownet do
+defmodule Ownet do
   defstruct [:address, :port, :flags, :socket, :errors_map]
   use GenServer
   require Logger
 
-  alias Exownet.OWClient
-  alias Exownet.Socket
+  alias Ownet.OWClient
+  alias Ownet.Socket
 
   @moduledoc """
-  Documentation for `Exownet`.
+  Documentation for `Ownet`.
 
   ## Examples
   """

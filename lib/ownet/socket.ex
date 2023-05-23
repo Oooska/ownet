@@ -1,4 +1,4 @@
-defmodule Exownet.Socket do
+defmodule Ownet.Socket do
   #Behaviour wrapper around :gen_tcp so it can be more easily mocked.
   @callback send(:gen_tcp.socket(), binary()) :: :ok | {:error, :inet.posix()}
   @callback recv(:gen_tcp.socket(), integer()) :: {:ok, binary()} | {:error, :inet.posix()}
@@ -17,5 +17,5 @@ defmodule Exownet.Socket do
   @spec connect(charlist, integer, :gen_tcp.opts()) :: {:ok, :gen_tcp.socket()} | {:error, :inet.posix()}
   def connect(addr, port, opts), do: impl().connect(addr, port, opts)
 
-  defp impl, do: Application.get_env(:Exownet, :socket, :gen_tcp)
+  defp impl, do: Application.get_env(:Ownet, :socket, :gen_tcp)
 end
