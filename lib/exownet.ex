@@ -69,7 +69,9 @@ defmodule Exownet do
     with {:ok, value} <- read(path, opts) do
       case value do
         "0" -> {:ok, false}
+        0 -> {:ok, false}
         "1" -> {:ok, true}
+        1 -> {:ok, true}
         "false" -> {:ok, false}
         "true" -> {:ok, true}
         _ -> {:error, "Not a boolean"}
