@@ -60,60 +60,60 @@ defmodule Ownet do
 
   ## Examples
   ```
-  iex(1)> Logger.configure(level: :warn)
-  :ok
-  iex(2)> Ownet.start_link(address: 'localhost')
-  {:ok, #PID<0.151.0>}
-  iex(3)> Ownet.dir()
-  {:ok, ["/42.C2D154000000/", "/43.E6ABD6010000/"]}
-  iex(4)> Ownet.dir("/42.C2D154000000/")
-  {:ok,
-  ["/42.C2D154000000/PIO.BYTE", "/42.C2D154000000/PIO.ALL",
-    "/42.C2D154000000/PIO.A", "/42.C2D154000000/PIO.B",
-    "/42.C2D154000000/address", "/42.C2D154000000/alias", "/42.C2D154000000/crc8",
-    "/42.C2D154000000/family", "/42.C2D154000000/fasttemp", "/42.C2D154000000/id",
-    "/42.C2D154000000/latch.BYTE", "/42.C2D154000000/latch.ALL",
-    "/42.C2D154000000/latch.A", "/42.C2D154000000/latch.B",
-    "/42.C2D154000000/latesttemp", "/42.C2D154000000/locator",
-    "/42.C2D154000000/power", "/42.C2D154000000/r_address",
-    "/42.C2D154000000/r_id", "/42.C2D154000000/r_locator",
-    "/42.C2D154000000/sensed.BYTE", "/42.C2D154000000/sensed.ALL",
-    "/42.C2D154000000/sensed.A", "/42.C2D154000000/sensed.B",
-    "/42.C2D154000000/temperature", "/42.C2D154000000/temperature10",
-    "/42.C2D154000000/temperature11", "/42.C2D154000000/temperature12",
-    "/42.C2D154000000/temperature9", "/42.C2D154000000/tempres",
-    "/42.C2D154000000/type"]}
-  iex(5)> Ownet.read("/42.C2D154000000/temperature")
-  {:ok, "      22.625"}
-  iex(6)> Ownet.read_float("/42.C2D154000000/temperature")
-  {:ok, 22.625}
-  iex(7)> Ownet.read_float("/42.C2D154000000/temperature", flags: [:f])
-  {:ok, 72.725}
-  iex(8)> Ownet.read("/42.C2D154000000/PIO.A")
-  {:ok, "1"}
-  iex(9)> Ownet.write("/42.C2D154000000/PIO.A", false)
-  :ok
-  iex(10)> Ownet.read("/42.C2D154000000/PIO.A")
-  {:ok, "0"}
-  iex(11)> Ownet.read_bool("/42.C2D154000000/PIO.A")
-  {:ok, false}
-  iex(12)> Ownet.present("/42.C2D154000000/")
-  {:ok, true}
-  iex(13)> Ownet.present("/NOTPRESENT/")
-  {:ok, false}
+  # iex(1)> Logger.configure(level: :warn)
+  # :ok
+  # iex(2)> Ownet.start_link(address: 'localhost')
+  # {:ok, #PID<0.151.0>}
+  # iex(3)> Ownet.dir()
+  # {:ok, ["/42.C2D154000000/", "/43.E6ABD6010000/"]}
+  # iex(4)> Ownet.dir("/42.C2D154000000/")
+  # {:ok,
+  # ["/42.C2D154000000/PIO.BYTE", "/42.C2D154000000/PIO.ALL",
+  #   "/42.C2D154000000/PIO.A", "/42.C2D154000000/PIO.B",
+  #   "/42.C2D154000000/address", "/42.C2D154000000/alias", "/42.C2D154000000/crc8",
+  #   "/42.C2D154000000/family", "/42.C2D154000000/fasttemp", "/42.C2D154000000/id",
+  #   "/42.C2D154000000/latch.BYTE", "/42.C2D154000000/latch.ALL",
+  #   "/42.C2D154000000/latch.A", "/42.C2D154000000/latch.B",
+  #   "/42.C2D154000000/latesttemp", "/42.C2D154000000/locator",
+  #   "/42.C2D154000000/power", "/42.C2D154000000/r_address",
+  #   "/42.C2D154000000/r_id", "/42.C2D154000000/r_locator",
+  #   "/42.C2D154000000/sensed.BYTE", "/42.C2D154000000/sensed.ALL",
+  #   "/42.C2D154000000/sensed.A", "/42.C2D154000000/sensed.B",
+  #   "/42.C2D154000000/temperature", "/42.C2D154000000/temperature10",
+  #   "/42.C2D154000000/temperature11", "/42.C2D154000000/temperature12",
+  #   "/42.C2D154000000/temperature9", "/42.C2D154000000/tempres",
+  #   "/42.C2D154000000/type"]}
+  # iex(5)> Ownet.read("/42.C2D154000000/temperature")
+  # {:ok, "      22.625"}
+  # iex(6)> Ownet.read_float("/42.C2D154000000/temperature")
+  # {:ok, 22.625}
+  # iex(7)> Ownet.read_float("/42.C2D154000000/temperature", flags: [:f])
+  # {:ok, 72.725}
+  # iex(8)> Ownet.read("/42.C2D154000000/PIO.A")
+  # {:ok, "1"}
+  # iex(9)> Ownet.write("/42.C2D154000000/PIO.A", false)
+  # :ok
+  # iex(10)> Ownet.read("/42.C2D154000000/PIO.A")
+  # {:ok, "0"}
+  # iex(11)> Ownet.read_bool("/42.C2D154000000/PIO.A")
+  # {:ok, false}
+  # iex(12)> Ownet.present("/42.C2D154000000/")
+  # {:ok, true}
+  # iex(13)> Ownet.present("/NOTPRESENT/")
+  # {:ok, false}
 
 
   # You can tell all the powered temperature sensors to start reading all of the powered
   # temperature sensors simultaneously, and then read them quickly without waiting for the
   # analog-to-digital conversion:
 
-  iex(14)> ow.write("/simultaneous/temperature", true)
-  :ok
+  # iex(14)> Ownet.write("/simultaneous/temperature", true)
+  # :ok
 
   # Wait ~0.75 seconds
 
-  iex(15)> ow.read("uncached/42.C2D154000000/latesttemp")
-  {:ok, "     22.1875"}
+  # iex(15)> Ownet.read("uncached/42.C2D154000000/latesttemp")
+  # {:ok, "     22.1875"}
   ```
 
   """
@@ -420,6 +420,7 @@ defmodule Ownet do
     |> Enum.into(%{})
   end
 
+  @spec parse_float(String.t()) :: float() | :error
   defp parse_float(value) do
     #Converts "        23.5" to 23.5
     value

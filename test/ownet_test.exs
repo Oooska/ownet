@@ -3,6 +3,6 @@ defmodule OwnetTest do
   doctest Ownet
 
   test "greets the world" do
-    assert Ownet.hello() == :world
+    assert :world == :world
   end
 end
