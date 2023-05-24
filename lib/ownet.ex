@@ -3,7 +3,7 @@ defmodule Ownet do
   use GenServer
   require Logger
 
-  alias Ownet.OWClient
+  alias Ownet.Client
   alias Ownet.Socket
 
   @moduledoc """
@@ -56,7 +56,7 @@ defmodule Ownet do
   - `:mbar`, `:atm`, `:mmhg`, `:inhg`, `:psi`  - Specifies pressure scale. `:mbar` is default.
   - `:bus_ret` - Shows 'special' or 'hidden' directories in dir() command responses, such as `/system/`.
   - `:fdi`, `:fi`, `:fdidc`, `:fdic`, `:fidc`, `:fic` - Changes the way one wire addresses are displayed. `:fdi` is default.
-  - There's a few other available flags that aren't documented due to lack of relevancy. See the OWPacket source for more info.
+  - There's a few other available flags that aren't documented due to lack of relevancy. See the Packet source for more info.
 
   ## Examples
   ```
@@ -120,7 +120,7 @@ defmodule Ownet do
   @type t :: %__MODULE__{
     address: charlist(),
     port: integer(),
-    flags: OWPacket.flag_list(),
+    flags: Packet.flag_list(),
     socket: :gen_tcp.socket() | nil,
     errors_map: %{integer() => String.t()}
   }
@@ -326,35 +326,35 @@ defmodule Ownet do
 
   defp do_ping(state, flags) do
     case get_socket(state) do
-      {:ok, socket} -> {socket, OWClient.ping(socket, flags)}
+      {:ok, socket} -> {socket, Client.ping(socket, flags)}
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp do_present(state, path, flags) do
     case get_socket(state) do
-      {:ok, socket} -> {socket, OWClient.present(socket, path, flags)}
+      {:ok, socket} -> {socket, Client.present(socket, path, flags)}
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp do_dir(path, state, flags) do
     case get_socket(state) do
-      {:ok, socket} -> {socket, OWClient.dir(socket, path, flags)}
+      {:ok, socket} -> {socket, Client.dir(socket, path, flags)}
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp do_read(path, state, flags) do
     case get_socket(state) do
-      {:ok, socket} -> {socket, OWClient.read(socket, path, flags)}
+      {:ok, socket} -> {socket, Client.read(socket, path, flags)}
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp do_write(path, state, value, flags) do
     case get_socket(state) do
-      {:ok, socket} -> {socket, OWClient.write(socket, path, value, flags)}
+      {:ok, socket} -> {socket, Client.write(socket, path, value, flags)}
       {:error, reason} -> {:error, reason}
     end
   end

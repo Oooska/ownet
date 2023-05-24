@@ -1,10 +1,10 @@
 
-defmodule Ownet.OWPacket do
+defmodule Ownet.Packet do
   import Bitwise
 
   @moduledoc false
 
-  # The `Ownet.OWPacket` module provides functionality for creating and manipulating owserver (One-Wire File System) packets.
+  # The `Ownet.Packet` module provides functionality for creating and manipulating owserver (One-Wire File System) packets.
   #
   # This module allows you to create packets with `create_packet/5`, create packet flags with `calculate_flag/2`, and check for granted persistence with `persistence_granted?/1`.
   #
