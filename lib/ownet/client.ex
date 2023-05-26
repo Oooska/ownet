@@ -95,7 +95,7 @@ defmodule Ownet.Client do
 
   @spec send_message(:gen_tcp.socket(), binary()) :: :ok | socket_error
   defp send_message(socket, packet) do
-    Logger.debug("Sending message: #{inspect(Packet.decode_outgoing_packet_header(packet), binaries: :as_strings)}")
+    Logger.debug("Sending message: #{inspect(Packet.decode_outgoing_packet(packet), binaries: :as_strings)}")
     Socket.send(socket, packet)
   end
 
@@ -105,13 +105,13 @@ defmodule Ownet.Client do
          {:ok, header, payload} <- receive_payload(socket, header) do
 
 
-      Logger.debug("Received message: #{inspect(Packet.decode_incoming_packet_header(header<>payload), binaries: :as_strings)}")
+      Logger.debug("Received message: #{inspect(Packet.decode_incoming_packet(header<>payload), binaries: :as_strings)}")
       ret_code = Packet.return_code(header)
       if ret_code >= 0 do
-        #IO.inspect({Packet.decode_incoming_packet_header(header), payload}, label: "ret code >= 0", binaries: :as_strings)
+        #IO.inspect({Packet.decode_incoming_packet(header), payload}, label: "ret code >= 0", binaries: :as_strings)
         {:ok, header, payload, Packet.persistence_granted?(header)}
       else
-        #IO.inspect({Packet.decode_incoming_packet_header(header), payload}, label: "ret code != 0", binaries: :as_strings)
+        #IO.inspect({Packet.decode_incoming_packet(header), payload}, label: "ret code != 0", binaries: :as_strings)
         {@ownet_error, -ret_code, Packet.persistence_granted?(header)}
       end
     end

@@ -9,8 +9,8 @@ defmodule Ownet.Packet do
   # This module allows you to create packets with `create_packet/5`, create packet flags with `calculate_flag/2`, and check for granted persistence with `persistence_granted?/1`.
   #
   # The module also provides several decoding utilities:
-  # - `decode_outgoing_packet_header/1`
-  # - `decode_incoming_packet_header/1`
+  # - `decode_outgoing_packet/1`
+  # - `decode_incoming_packet/1`
   #
   # The module defines the following types:
   # - `message_type`: Represents different types of owserver messages.
@@ -169,8 +169,8 @@ defmodule Ownet.Packet do
     header
   end
 
-  @spec decode_outgoing_packet_header(header()) :: decoded_outgoing_packet_header()
-  def decode_outgoing_packet_header(data) do
+  @spec decode_outgoing_packet(header()) :: decoded_outgoing_packet_header()
+  def decode_outgoing_packet(data) do
     # Returns a map representation of an outgoing header.
     <<version::32-integer-signed-big, payloadsize::32-integer-signed-big,
       type::32-integer-signed-big, flag::32-integer-signed-big, size::32-integer-signed-big,
@@ -187,8 +187,8 @@ defmodule Ownet.Packet do
     }
   end
 
-  @spec decode_incoming_packet_header(header) :: decoded_incoming_packet_header()
-  def decode_incoming_packet_header(data) do
+  @spec decode_incoming_packet(header) :: decoded_incoming_packet_header()
+  def decode_incoming_packet(data) do
     # Returns a map representation of an incoming header.
     <<version::32-integer-signed-big, payloadsize::32-integer-signed-big,
       ret::32-integer-signed-big, flag::32-integer-signed-big, size::32-integer-signed-big,
