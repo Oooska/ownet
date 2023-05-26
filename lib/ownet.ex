@@ -258,21 +258,27 @@ defmodule Ownet do
     port = Keyword.get(opts, :port, 4304)
     flags = Keyword.get(opts, :flags, [:persistence])
 
-    state = %__MODULE__{
+    send(self(), :init_error_codes)
+
+    {:ok, %__MODULE__{
       address: address,
       port: port,
       flags: flags,
       socket: nil,
       errors_map: %{}
-    }
+    }}
+  end
 
+  @impl true
+  def handle_info(:init_error_codes, state) do
     case read_error_codes(state) do
-      {:ok, state} -> {:ok, state}
-      {:ownet_error, reason, state} -> {:ok, state}
+      {:ok, state} -> {:noreply, state}
+      {:ownet_error, reason, state} ->
         Logger.error("Unable to read error status codes: #{reason}")
+        {:noreply, state}
       {:error, reason} ->
         Logger.error("Unable to connect to connect to owserver: #{reason}")
-        {:ok, state}
+        {:noreply, state}
     end
   end
 
