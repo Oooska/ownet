@@ -62,7 +62,7 @@ defmodule Ownet do
   ```
   # iex(1)> Logger.configure(level: :warn)
   # :ok
-  # iex(2)> Ownet.start_link(address: 'localhost')
+  # iex(2)> Ownet.connect(address: 'localhost')
   # {:ok, #PID<0.151.0>}
   # iex(3)> Ownet.dir()
   # {:ok, ["/42.C2D154000000/", "/43.E6ABD6010000/"]}
@@ -128,6 +128,20 @@ defmodule Ownet do
   @error_codes_path "/settings/return_codes/text.ALL"
 
   # Client API
+
+  @doc """
+  Starts an Ownet process under the Ownet.Application supervisor and connects to the server.
+  Multiple processes can be started by providing different names.
+  """
+  def connect(opts) do
+    #address \\ 'localhost', port \\ 4304, flags \\ [:persistence], name \\ Ownet
+    address = Keyword.get(opts, :address, 'localhost')
+    port = Keyword.get(opts, :port, 4304)
+    flags = Keyword.get(opts, :flags, [:persistence])
+    name = Keyword.get(opts, :name, __MODULE__)
+
+    Ownet.Application.start_client(address: address, port: port, flags: flags, name: name)
+  end
 
   def start_link(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
