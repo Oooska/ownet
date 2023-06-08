@@ -101,6 +101,7 @@ defmodule Ownet.Client do
 
   @spec receive_next_message(:gen_tcp.socket()) :: {:ok, Packet.header(), binary(), boolean()} | error_tuple
   defp receive_next_message(socket) do
+    #receives a single message; the message may or may not have a payload.
     with {:ok, header} <- receive_header(socket),
          {:ok, header, payload} <- receive_payload(socket, header) do
 
@@ -119,6 +120,7 @@ defmodule Ownet.Client do
 
   @spec receive_next_message_with_payload(:gen_tcp.socket()) :: {:ok, Packet.header(), binary(), boolean()} | error_tuple()
   defp receive_next_message_with_payload(socket) do
+    #Receives messages until it receives a message with a payload or an error
     case receive_next_message(socket) do
       {:ok, _header, <<>>, _persistence_granted} -> receive_next_message_with_payload(socket)
       {:ok, header, payload, persistence_granted} -> {:ok, header, payload, persistence_granted}

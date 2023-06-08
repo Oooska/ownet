@@ -127,12 +127,20 @@ defmodule Ownet do
 
   @error_codes_path "/settings/return_codes/text.ALL"
 
+  @type socket_error :: {:error, :inet.posix()}
+  @type ownet_error :: {:ownet_error, integer(), boolean()}
+  @type error_tuple :: socket_error | ownet_error
+
+  @type connect_keywords() :: [address: charlist(), port: integer(), flags: Packet.flag_list(), name: atom()]
+  @type cmd_keywords() :: [name: atom(), flags: Packet.flag_list()]
+
   # Client API
 
   @doc """
   Starts an Ownet process under the Ownet.Application supervisor and connects to the server.
   Multiple processes can be started by providing different names.
   """
+  @spec connect(connect_keywords()) :: {:ok, pid()} | error_tuple
   def connect(opts) do
     #address \\ 'localhost', port \\ 4304, flags \\ [:persistence], name \\ Ownet
     address = Keyword.get(opts, :address, 'localhost')
@@ -143,6 +151,7 @@ defmodule Ownet do
     Ownet.Application.start_client(address: address, port: port, flags: flags, name: name)
   end
 
+  @spec start_link(cmd_keywords()) :: {:ok, pid} | error_tuple
   def start_link(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
     GenServer.start_link(__MODULE__, opts, name: name)
@@ -156,6 +165,7 @@ defmodule Ownet do
 
   - `opts` - Accepts flags (that don't do anything for a ping command aside from `[:persistence]`)
   """
+  @spec ping(cmd_keywords()) :: :ok | error_tuple
   def ping(opts \\ []) do
     name = Keyword.get(opts, :name, __MODULE__)
     flags = Keyword.get(opts, :flags, [])
@@ -170,6 +180,7 @@ defmodule Ownet do
   - `path`: A string representing the path in the 1-Wire network.
   - `opts`: A keyword list of options. It also accepts `:flags` option.
   """
+  @spec present(String.t(), cmd_keywords()) :: {:ok, boolean()} | error_tuple
   def present(path, opts \\ []) do
     name = Keyword.get(opts, :name, __MODULE__)
     flags = Keyword.get(opts, :flags, [])
@@ -183,7 +194,7 @@ defmodule Ownet do
   - `path`: A string representing the path in the 1-Wire network. The default is the root ("/").
   - `opts`: A keyword list of options. It also accepts `:flags` option.
   """
-  @spec dir(String.t(), Keyword.t()) :: {:ok, list(String.t())} | {:error, atom()}
+  @spec dir(String.t(), cmd_keywords()) :: {:ok, list(String.t())} | error_tuple
   def dir(path \\ "/", opts \\ []) do
     name = Keyword.get(opts, :name, __MODULE__)
     flags = Keyword.get(opts, :flags, [])
@@ -194,11 +205,11 @@ defmodule Ownet do
   Reads the value at the specified path in the 1-Wire network.
 
   ## Params
-
   - `path`: A string representing the path in the 1-Wire network.
   - `opts`: A keyword list of options. It also accepts `:flags` option.
 
   """
+  @spec read(String.t(), cmd_keywords()) :: {:ok, String.t()} | error_tuple
   def read(path, opts \\ []) do
     name = Keyword.get(opts, :name, __MODULE__)
     flags = Keyword.get(opts, :flags, [])
@@ -214,6 +225,7 @@ defmodule Ownet do
   - `opts`: A keyword list of options. It also accepts `:flags` option.
 
   """
+  @spec read_float(String.t, cmd_keywords()) :: {:ok, float()} | error_tuple
   def read_float(path, opts \\ []) do
     with {:ok, value} <- read(path, opts),
          {float, _} <- parse_float(value) do
@@ -234,15 +246,16 @@ defmodule Ownet do
     - `opts`: A keyword list of options. It also accepts `:flags` option.
 
   """
+  @spec read_bool(String.t(), cmd_keywords()) :: {:ok, boolean()} | error_tuple
   def read_bool(path, opts \\ []) do
     with {:ok, value} <- read(path, opts) do
       case value do
         "0" -> {:ok, false}
-        0 -> {:ok, false}
         "1" -> {:ok, true}
-        1 -> {:ok, true}
         "false" -> {:ok, false}
         "true" -> {:ok, true}
+        <<0>> -> {:ok, false}
+        <<1>> -> {:ok, true}
         _ -> {:error, "Not a boolean"}
       end
     end
@@ -259,6 +272,7 @@ defmodule Ownet do
   - `opts`: A keyword list of options. It also accepts `:flags` option.
 
   """
+  @spec write(String.t(), binary() | String.t() | boolean() | :on | :off) :: :ok | error_tuple
   def write(path, value, opts \\ []) do
     name = Keyword.get(opts, :name, __MODULE__)
     flags = Keyword.get(opts, :flags, [])
@@ -440,7 +454,7 @@ defmodule Ownet do
     |> Enum.into(%{})
   end
 
-  @spec parse_float(String.t()) :: float() | :error
+  @spec parse_float(String.t()) :: {float(), binary()} | :error
   defp parse_float(value) do
     #Converts "        23.5" to 23.5
     value
