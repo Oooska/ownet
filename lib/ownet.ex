@@ -4,7 +4,6 @@ defmodule Ownet do
   require Logger
 
   alias Ownet.Client
-  alias Ownet.Socket
 
   @moduledoc """
   The `Ownet` module provides a client API to interact with an owserver from the OWFS (1-wire file system) family. It
@@ -254,7 +253,7 @@ defmodule Ownet do
   # Server Callbacks
   @impl true
   def init(opts) do
-    address = to_charlist(Keyword.get(opts, :address, 'localhost'))
+    address = to_charlist(Keyword.get(opts, :address, ~c"localhost"))
     port = Keyword.get(opts, :port, 4304)
     flags = Keyword.get(opts, :flags, [:persistence])
 
@@ -373,7 +372,7 @@ defmodule Ownet do
   end
 
   defp update_socket_state(state, socket, false) do
-    Socket.close(socket)
+    :gen_tcp.close(socket)
     %{state|socket: nil}
   end
 
@@ -381,7 +380,7 @@ defmodule Ownet do
   #get_socket returns the state's socket if it's connected, otherwise opens a new
   #socket to the server.
   defp get_socket(state) when state.socket == nil do
-    Socket.connect(state.address, state.port, [:binary, active: false])
+    :gen_tcp.connect(state.address, state.port, [:binary, active: false])
   end
 
   defp get_socket(state) do

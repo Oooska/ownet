@@ -1,7 +1,6 @@
 defmodule Ownet.Client do
   require Logger
   alias Ownet.Packet
-  alias Ownet.Socket
 
   @ownet_error :ownet_error
   @maxsize 65536
@@ -42,7 +41,7 @@ defmodule Ownet.Client do
       {:ok, _header, payload, persistence} ->
         values =
           payload # "/28.32D7E0080000,/42.C2D154000000\0"
-          |> String.slice(0..-2)
+          |> String.slice(0..-2//1)
           |> String.split(",")
         {:ok, values, persistence}
 
@@ -96,7 +95,7 @@ defmodule Ownet.Client do
   @spec send_message(:gen_tcp.socket(), binary()) :: :ok | socket_error
   defp send_message(socket, packet) do
     Logger.debug("Sending message: #{inspect(Packet.decode_outgoing_packet(packet), binaries: :as_strings)}")
-    Socket.send(socket, packet)
+    :gen_tcp.send(socket, packet)
   end
 
   @spec receive_next_message(:gen_tcp.socket()) :: {:ok, Packet.header(), binary(), boolean()} | error_tuple
@@ -129,7 +128,7 @@ defmodule Ownet.Client do
 
   @spec receive_header(:gen_tcp.socket()) :: {:ok, Packet.header()} | socket_error()
   defp receive_header(socket) do
-    Socket.recv(socket, 24)
+    :gen_tcp.recv(socket, 24)
   end
 
   @spec receive_payload(:gen_tcp.socket(), Packet.header()) :: {:ok, Packet.header(), binary()} | socket_error()
@@ -137,7 +136,7 @@ defmodule Ownet.Client do
     payload_size = Packet.payload_size(header)
 
     if payload_size > 0 do
-      case Socket.recv(socket, payload_size) do
+      case :gen_tcp.recv(socket, payload_size) do
         {:ok, payload} -> {:ok, header, payload}
         {:error, reason} -> {:error, reason}
       end

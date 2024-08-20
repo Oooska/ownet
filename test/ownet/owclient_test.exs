@@ -1,13 +1,13 @@
 defmodule ClientTest do
   use ExUnit.Case
   require Logger
-  alias Ownet.{Client, Packet, MockSocket}
+  alias Ownet.{Client, Packet}
   import Mox
 
   setup :verify_on_exit!
 
   test "ping sends NOP command" do
-    MockSocket
+    :gen_tcp
     |> expect(:send, fn _socket, data ->
         header = Packet.decode_outgoing_packet(data)
         assert header[:type] == 1
@@ -19,7 +19,7 @@ defmodule ClientTest do
   end
 
   test "ping reads persistence flag on return header" do
-    MockSocket
+    :gen_tcp
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(flags: Packet.calculate_flag([:persistence]))} end)
 
@@ -27,14 +27,14 @@ defmodule ClientTest do
   end
 
   test "ping returns network error tuple on error" do
-    MockSocket
+    :gen_tcp
     |> expect(:send, fn _, _ -> {:error, :enetunreach} end)
 
     assert Client.ping(:fakesocket) == {:error, :enetunreach}
   end
 
   test "present sends PRESENT command and returns true if path is present" do
-    MockSocket
+    :gen_tcp
     |> expect(:send, fn _socket, data ->
         header = Packet.decode_outgoing_packet(data)
         assert header[:type] == 6
@@ -47,7 +47,7 @@ defmodule ClientTest do
   end
 
   test "present returns false on ownet error" do
-    MockSocket
+    :gen_tcp
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(ret: -1)} end)
 
@@ -56,7 +56,7 @@ defmodule ClientTest do
   end
 
   test "present reads persistence flag on return header" do
-    MockSocket
+    :gen_tcp
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(flags: Packet.calculate_flag([:persistence]))} end)
 
@@ -65,14 +65,14 @@ defmodule ClientTest do
   end
 
   test "present returns network error tuple on error" do
-    MockSocket
+    :gen_tcp
     |> expect(:send, fn _, _ -> {:error, :enetunreach} end)
 
     assert Client.present(:fakesocket, "/") == {:error, :enetunreach}
   end
 
   test "dir sends DIRALLSLASH command, reads and parses a list of directories" do
-    MockSocket
+    :gen_tcp
     |> expect(:send, fn _socket, data ->
         header = Packet.decode_outgoing_packet(data)
         assert header[:type] == 9
@@ -91,7 +91,7 @@ defmodule ClientTest do
   end
 
   test "dir parses a single returned directory" do
-    MockSocket
+    :gen_tcp
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: 18, size: 17)} end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, "/43.E6ABD6010000/\0"} end)
@@ -101,7 +101,7 @@ defmodule ClientTest do
   end
 
   test "dir waits for a packet with a payload" do
-    MockSocket
+    :gen_tcp
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: -1)} end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: -1)} end)
@@ -114,7 +114,7 @@ defmodule ClientTest do
   end
 
   test "dir reads persistence flag on return header" do
-    MockSocket
+    :gen_tcp
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: 18, size: 17, flags: Packet.calculate_flag([:persistence]))} end)
     |> expect(:recv, fn _socket, _data -> {:ok, "/43.E6ABD6010000/\0"} end)
@@ -124,7 +124,7 @@ defmodule ClientTest do
   end
 
   test "dir command returns :ownet_error on owfs error" do
-    MockSocket
+    :gen_tcp
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(ret: -1)} end)
 
@@ -133,7 +133,7 @@ defmodule ClientTest do
   end
 
   test "read sends a READ command, and returns the read response" do
-    MockSocket
+    :gen_tcp
     |> expect(:send, fn _socket, data ->
         header = Packet.decode_outgoing_packet(data)
         assert header[:type] == 2
@@ -151,20 +151,20 @@ defmodule ClientTest do
   end
 
   test "read waits for a packet with a payload" do
-    MockSocket
-    |> expect(:send, fn _socket, data -> :ok end)
+    :gen_tcp
+    |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: -1)} end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: -1)} end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: -1)} end)
     |> expect(:recv, fn _socket, _bytes -> {:ok, return_packet(payloadsize: 12, ret: 12, size: 12)} end)
-    |> expect(:recv, fn _socket, bytes -> {:ok, "       21.25"} end)
+    |> expect(:recv, fn _socket, _bytes -> {:ok, "       21.25"} end)
 
     {:ok, value, _} = Client.read(:fakesocket, "/28.32D7E0080000/temperature")
     assert value == "       21.25"
   end
 
   test "read reads persistence flag on return header" do
-    MockSocket
+    :gen_tcp
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _bytes -> {:ok, return_packet(payloadsize: 12, ret: 12, size: 12, flags: Packet.calculate_flag([:persistence]))} end)
     |> expect(:recv, fn _socket, _data -> {:ok, "       21.25"} end)
@@ -174,7 +174,7 @@ defmodule ClientTest do
   end
 
   test "read command returns :ownet_error on owfs error" do
-    MockSocket
+    :gen_tcp
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(ret: -1)} end)
 
@@ -183,7 +183,7 @@ defmodule ClientTest do
   end
 
   test "read command returns network error tuple on error" do
-    MockSocket
+    :gen_tcp
     |> expect(:send, fn _, _ -> {:error, :enetunreach} end)
 
     assert Client.present(:fakesocket, "/") == {:error, :enetunreach}
@@ -191,21 +191,21 @@ defmodule ClientTest do
 
 
   test "write sends WRITE command to server, and formats the data correctly" do
-    MockSocket
+    :gen_tcp
     |> expect(:send, fn _socket, data ->
       header = Packet.decode_outgoing_packet(data)
       assert header[:type] == 3
       assert header[:payload] == "/42.C2D154000000/PIO.A\01"
         :ok
       end)
-    |> expect(:recv, fn _socket, bytes -> {:ok, return_packet(size: 1)} end)
+    |> expect(:recv, fn _socket, _bytes -> {:ok, return_packet(size: 1)} end)
 
     {ok, _} = Client.write(:fakesocket, "/42.C2D154000000/PIO.A", "1")
     assert ok == :ok
   end
 
   test "write command returns :ownet_error on owfs error" do
-    MockSocket
+    :gen_tcp
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(ret: -1)} end)
 
@@ -214,7 +214,7 @@ defmodule ClientTest do
   end
 
   test "write command returns network error tuple on error" do
-    MockSocket
+    :gen_tcp
     |> expect(:send, fn _, _ -> {:error, :enetunreach} end)
 
     assert Client.write(:fakesocket, "/badpath", "1") == {:error, :enetunreach}
