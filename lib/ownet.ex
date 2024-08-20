@@ -3,7 +3,7 @@ defmodule Ownet do
   use GenServer
   require Logger
 
-  alias Ownet.Client
+  alias Ownet.Socket
 
   @moduledoc """
   The `Ownet` module provides a client API to interact with an owserver from the OWFS (1-wire file system) family. It
@@ -325,35 +325,35 @@ defmodule Ownet do
 
   defp do_ping(state, flags) do
     case get_socket(state) do
-      {:ok, socket} -> {socket, Client.ping(socket, flags)}
+      {:ok, socket} -> {socket, Socket.ping(socket, flags)}
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp do_present(state, path, flags) do
     case get_socket(state) do
-      {:ok, socket} -> {socket, Client.present(socket, path, flags)}
+      {:ok, socket} -> {socket, Socket.present(socket, path, flags)}
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp do_dir(path, state, flags) do
     case get_socket(state) do
-      {:ok, socket} -> {socket, Client.dir(socket, path, flags)}
+      {:ok, socket} -> {socket, Socket.dir(socket, path, flags)}
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp do_read(path, state, flags) do
     case get_socket(state) do
-      {:ok, socket} -> {socket, Client.read(socket, path, flags)}
+      {:ok, socket} -> {socket, Socket.read(socket, path, flags)}
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp do_write(path, state, value, flags) do
     case get_socket(state) do
-      {:ok, socket} -> {socket, Client.write(socket, path, value, flags)}
+      {:ok, socket} -> {socket, Socket.write(socket, path, value, flags)}
       {:error, reason} -> {:error, reason}
     end
   end

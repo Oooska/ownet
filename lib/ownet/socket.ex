@@ -1,8 +1,7 @@
-defmodule Ownet.Client do
+defmodule Ownet.Socket do
   require Logger
   alias Ownet.Packet
 
-  @ownet_error :ownet_error
   @maxsize 65536
   @type socket_error :: {:error, :inet.posix()}
   @type ownet_error :: {:ownet_error, integer(), boolean()}
@@ -111,7 +110,7 @@ defmodule Ownet.Client do
         {:ok, header, payload, Packet.persistence_granted?(header)}
       else
         #IO.inspect({Packet.decode_incoming_packet(header), payload}, label: "ret code != 0", binaries: :as_strings)
-        {@ownet_error, -ret_code, Packet.persistence_granted?(header)}
+        {:ownet_error, -ret_code, Packet.persistence_granted?(header)}
       end
     end
   end
@@ -121,7 +120,7 @@ defmodule Ownet.Client do
     case receive_next_message(socket) do
       {:ok, _header, <<>>, _persistence_granted} -> receive_next_message_with_payload(socket)
       {:ok, header, payload, persistence_granted} -> {:ok, header, payload, persistence_granted}
-      {@ownet_error, ret_code, persistence_granted} -> {@ownet_error, ret_code, persistence_granted}
+      {:ownet_error, ret_code, persistence_granted} -> {:ownet_error, ret_code, persistence_granted}
       {:error, reason} -> {:error, reason}
     end
   end

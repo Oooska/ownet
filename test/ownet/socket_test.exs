@@ -1,7 +1,7 @@
-defmodule ClientTest do
+defmodule SocketTest do
   use ExUnit.Case
   require Logger
-  alias Ownet.{Client, Packet}
+  alias Ownet.{Socket, Packet}
   import Mox
 
   setup :verify_on_exit!
@@ -15,7 +15,7 @@ defmodule ClientTest do
       end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet()} end)
 
-    assert Client.ping(:fakesocket) == {:ok, false}
+    assert Socket.ping(:fakesocket) == {:ok, false}
   end
 
   test "ping reads persistence flag on return header" do
@@ -23,14 +23,14 @@ defmodule ClientTest do
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(flags: Packet.calculate_flag([:persistence]))} end)
 
-    assert Client.ping(:fakesocket) == {:ok, true}
+    assert Socket.ping(:fakesocket) == {:ok, true}
   end
 
   test "ping returns network error tuple on error" do
     :gen_tcp
     |> expect(:send, fn _, _ -> {:error, :enetunreach} end)
 
-    assert Client.ping(:fakesocket) == {:error, :enetunreach}
+    assert Socket.ping(:fakesocket) == {:error, :enetunreach}
   end
 
   test "present sends PRESENT command and returns true if path is present" do
@@ -42,7 +42,7 @@ defmodule ClientTest do
       end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet()} end)
 
-    {:ok, present, _} = Client.present(:fakesocket, "/")
+    {:ok, present, _} = Socket.present(:fakesocket, "/")
     assert present
   end
 
@@ -51,7 +51,7 @@ defmodule ClientTest do
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(ret: -1)} end)
 
-    {:ok, present, _} = Client.present(:fakesocket, "/")
+    {:ok, present, _} = Socket.present(:fakesocket, "/")
     assert present == false
   end
 
@@ -60,7 +60,7 @@ defmodule ClientTest do
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(flags: Packet.calculate_flag([:persistence]))} end)
 
-    {:ok, _, persistence} = Client.present(:fakesocket, "/")
+    {:ok, _, persistence} = Socket.present(:fakesocket, "/")
     assert persistence
   end
 
@@ -68,7 +68,7 @@ defmodule ClientTest do
     :gen_tcp
     |> expect(:send, fn _, _ -> {:error, :enetunreach} end)
 
-    assert Client.present(:fakesocket, "/") == {:error, :enetunreach}
+    assert Socket.present(:fakesocket, "/") == {:error, :enetunreach}
   end
 
   test "dir sends DIRALLSLASH command, reads and parses a list of directories" do
@@ -84,7 +84,7 @@ defmodule ClientTest do
         {:ok, "/43.E6ABD6010000/,/42.C2D154000000/\0"}
       end)
 
-    {:ok, paths, _} = Client.dir(:fakesocket, "/")
+    {:ok, paths, _} = Socket.dir(:fakesocket, "/")
 
     assert "/43.E6ABD6010000/" in paths
     assert "/42.C2D154000000/" in paths
@@ -96,7 +96,7 @@ defmodule ClientTest do
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: 18, size: 17)} end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, "/43.E6ABD6010000/\0"} end)
 
-    {:ok, paths, _} = Client.dir(:fakesocket, "/")
+    {:ok, paths, _} = Socket.dir(:fakesocket, "/")
     assert "/43.E6ABD6010000/" in paths
   end
 
@@ -109,7 +109,7 @@ defmodule ClientTest do
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: 18, size: 17)} end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, "/43.E6ABD6010000/\0"} end)
 
-    {:ok, paths, _} = Client.dir(:fakesocket, "/")
+    {:ok, paths, _} = Socket.dir(:fakesocket, "/")
     assert "/43.E6ABD6010000/" in paths
   end
 
@@ -119,7 +119,7 @@ defmodule ClientTest do
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: 18, size: 17, flags: Packet.calculate_flag([:persistence]))} end)
     |> expect(:recv, fn _socket, _data -> {:ok, "/43.E6ABD6010000/\0"} end)
 
-    {:ok, _, persistence} = Client.dir(:fakesocket, "/")
+    {:ok, _, persistence} = Socket.dir(:fakesocket, "/")
     assert persistence
   end
 
@@ -128,7 +128,7 @@ defmodule ClientTest do
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(ret: -1)} end)
 
-    {:ownet_error, reason, _persistence} = Client.dir(:fakesocket, "/badpath")
+    {:ownet_error, reason, _persistence} = Socket.dir(:fakesocket, "/badpath")
     assert reason == 1
   end
 
@@ -146,7 +146,7 @@ defmodule ClientTest do
         {:ok, "       21.25"}
       end)
 
-    {:ok, value, _} = Client.read(:fakesocket, "/28.32D7E0080000/temperature")
+    {:ok, value, _} = Socket.read(:fakesocket, "/28.32D7E0080000/temperature")
     assert value == "       21.25"
   end
 
@@ -159,7 +159,7 @@ defmodule ClientTest do
     |> expect(:recv, fn _socket, _bytes -> {:ok, return_packet(payloadsize: 12, ret: 12, size: 12)} end)
     |> expect(:recv, fn _socket, _bytes -> {:ok, "       21.25"} end)
 
-    {:ok, value, _} = Client.read(:fakesocket, "/28.32D7E0080000/temperature")
+    {:ok, value, _} = Socket.read(:fakesocket, "/28.32D7E0080000/temperature")
     assert value == "       21.25"
   end
 
@@ -169,7 +169,7 @@ defmodule ClientTest do
     |> expect(:recv, fn _socket, _bytes -> {:ok, return_packet(payloadsize: 12, ret: 12, size: 12, flags: Packet.calculate_flag([:persistence]))} end)
     |> expect(:recv, fn _socket, _data -> {:ok, "       21.25"} end)
 
-    {:ok, _, persistence} = Client.read(:fakesocket, "/")
+    {:ok, _, persistence} = Socket.read(:fakesocket, "/")
     assert persistence
   end
 
@@ -178,7 +178,7 @@ defmodule ClientTest do
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(ret: -1)} end)
 
-    {:ownet_error, reason, _persistence} = Client.read(:fakesocket, "/badpath")
+    {:ownet_error, reason, _persistence} = Socket.read(:fakesocket, "/badpath")
     assert reason == 1
   end
 
@@ -186,7 +186,7 @@ defmodule ClientTest do
     :gen_tcp
     |> expect(:send, fn _, _ -> {:error, :enetunreach} end)
 
-    assert Client.present(:fakesocket, "/") == {:error, :enetunreach}
+    assert Socket.present(:fakesocket, "/") == {:error, :enetunreach}
   end
 
 
@@ -200,7 +200,7 @@ defmodule ClientTest do
       end)
     |> expect(:recv, fn _socket, _bytes -> {:ok, return_packet(size: 1)} end)
 
-    {ok, _} = Client.write(:fakesocket, "/42.C2D154000000/PIO.A", "1")
+    {ok, _} = Socket.write(:fakesocket, "/42.C2D154000000/PIO.A", "1")
     assert ok == :ok
   end
 
@@ -209,7 +209,7 @@ defmodule ClientTest do
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(ret: -1)} end)
 
-    {:ownet_error, reason, _persistence} = Client.write(:fakesocket, "/badpath", "1")
+    {:ownet_error, reason, _persistence} = Socket.write(:fakesocket, "/badpath", "1")
     assert reason == 1
   end
 
@@ -217,7 +217,7 @@ defmodule ClientTest do
     :gen_tcp
     |> expect(:send, fn _, _ -> {:error, :enetunreach} end)
 
-    assert Client.write(:fakesocket, "/badpath", "1") == {:error, :enetunreach}
+    assert Socket.write(:fakesocket, "/badpath", "1") == {:error, :enetunreach}
   end
 
 
