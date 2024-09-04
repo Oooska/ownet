@@ -1,4 +1,3 @@
-
 defmodule Ownet.Packet do
   import Bitwise
 
@@ -23,32 +22,66 @@ defmodule Ownet.Packet do
   #
   # The module also defines constants for message types and flags. These constants include various options and scales (for temperature, pressure, and address displays) that are used in OWFS messages.
 
-  @type message_type :: :ERROR | :NOP | :READ | :WRITE | :DIR | :SIZE | :PRESENT | :DIRALL | :GET | :DIRALLSLASH | :GETSLASH
-  @type flag_value :: :uncached | :safemode | :alias | :persistence | :bus_ret | :ownet | :c | :f | :k | :r |
-                      :mbar | :atm | :mmhg | :inhg | :psi | :pa | :fdi | :fi | :fdidc | :fdic | :fidc | :fic
+  @type message_type ::
+          :ERROR
+          | :NOP
+          | :READ
+          | :WRITE
+          | :DIR
+          | :SIZE
+          | :PRESENT
+          | :DIRALL
+          | :GET
+          | :DIRALLSLASH
+          | :GETSLASH
+  @type flag_value ::
+          :uncached
+          | :safemode
+          | :alias
+          | :persistence
+          | :bus_ret
+          | :ownet
+          | :c
+          | :f
+          | :k
+          | :r
+          | :mbar
+          | :atm
+          | :mmhg
+          | :inhg
+          | :psi
+          | :pa
+          | :fdi
+          | :fi
+          | :fdidc
+          | :fdic
+          | :fidc
+          | :fic
   @type flag_list :: list(flag_value())
-  @type header :: <<_:: 192>> #header consists of 6 * 32-bit integers
-  @type packet :: <<_:: 192, _::_*1>> #header + payload
+  # header consists of 6 * 32-bit integers
+  @type header :: <<_::192>>
+  # header + payload
+  @type packet :: <<_::192, _::_*1>>
 
   @type decoded_outgoing_packet_header :: %{
-    :version => integer(),
-    :payloadsize => integer(),
-    :type => integer(),
-    :flag => integer(),
-    :size => integer(),
-    :offset => integer(),
-    :payload => binary()
-  }
+          :version => integer(),
+          :payloadsize => integer(),
+          :type => integer(),
+          :flag => integer(),
+          :size => integer(),
+          :offset => integer(),
+          :payload => binary()
+        }
 
   @type decoded_incoming_packet_header :: %{
-    :flag => integer(),
-    :offset => integer(),
-    :payloadsize => integer(),
-    :ret => integer(),
-    :size => integer(),
-    :version => integer(),
-    :payload => binary()
-  }
+          :flag => integer(),
+          :offset => integer(),
+          :payloadsize => integer(),
+          :ret => integer(),
+          :size => integer(),
+          :version => integer(),
+          :payload => binary()
+        }
 
   @version 0
   @expected_size 0
@@ -70,21 +103,29 @@ defmodule Ownet.Packet do
 
   @flags %{
     # owfs options
-    uncached: 0x00000020,    # skips owfs cache
-    safemode: 0x00000010,    # 'Restricts operations to reads and cached'
-    alias: 0x00000008,       # 'Use aliases for known slaves (human readable names)
-    persistence: 0x00000004, # keeps socket alive between calls
-    bus_ret: 0x00000002,     # 'Include special directories (settings, statistics, uncached,...)'
-    ownet: 0x00000100,       # from owfs
+    # skips owfs cache
+    uncached: 0x00000020,
+    # 'Restricts operations to reads and cached'
+    safemode: 0x00000010,
+    # 'Use aliases for known slaves (human readable names)
+    alias: 0x00000008,
+    # keeps socket alive between calls
+    persistence: 0x00000004,
+    # 'Include special directories (settings, statistics, uncached,...)'
+    bus_ret: 0x00000002,
+    # from owfs
+    ownet: 0x00000100,
 
     # temperature scales
-    c: 0x00000000,    # default
+    # default
+    c: 0x00000000,
     f: 0x00010000,
     k: 0x00020000,
     r: 0x00030000,
 
     # pressure scales
-    mbar: 0x00000000,  # default
+    # default
+    mbar: 0x00000000,
     atm: 0x00040000,
     mmhg: 0x00080000,
     inhg: 0x000C0000,
@@ -92,15 +133,19 @@ defmodule Ownet.Packet do
     pa: 0x00140000,
 
     # Address displays
-    fdi: 0x00000000,   #f.i (/42.C2D154000000/) - default
-    fi: 0x01000000,    #fi (/42C2D154000000/)
-    fdidc: 0x02000000, #f.i.c (/42.C2D154000000.09/)
-    fdic: 0x03000000,  #f.ic (/42.C2D15400000009/)
-    fidc: 0x04000000,  #fi.c (/42C2D154000000.09/)
-    fic: 0x05000000    #fic (/42C2D15400000009/)
+    # f.i (/42.C2D154000000/) - default
+    fdi: 0x00000000,
+    # fi (/42C2D154000000/)
+    fi: 0x01000000,
+    # f.i.c (/42.C2D154000000.09/)
+    fdidc: 0x02000000,
+    # f.ic (/42.C2D15400000009/)
+    fdic: 0x03000000,
+    # fi.c (/42C2D154000000.09/)
+    fidc: 0x04000000,
+    # fic (/42C2D15400000009/)
+    fic: 0x05000000
   }
-
-
 
   @doc """
   Creates an outgoing OWFS packet with the given parameters.
@@ -125,8 +170,9 @@ defmodule Ownet.Packet do
         expected_size \\ @expected_size,
         offset \\ @offset
       ) do
-    header = <<@version::32-big, byte_size(payload)::32-big, @message_types[type]::32-big,
-              flags::32-big, expected_size::32-big, offset::32-big>>
+    header =
+      <<@version::32-big, byte_size(payload)::32-big, @message_types[type]::32-big, flags::32-big,
+        expected_size::32-big, offset::32-big>>
 
     header <> payload
   end
@@ -137,7 +183,6 @@ defmodule Ownet.Packet do
     # This will allow you to set invalid flag combinations (e.g. setting multiple temperature scales)
     Enum.reduce(flags, current_value, fn flag, acc -> @flags[flag] ||| acc end)
   end
-
 
   @spec persistence_granted?(header()) :: boolean()
   def persistence_granted?(header) do
