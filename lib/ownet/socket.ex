@@ -4,48 +4,48 @@ defmodule Ownet.Socket do
 
   @maxsize 65536
   @type socket_error :: {:error, :inet.posix()}
-  @type ownet_error :: {:ownet_error, integer(), boolean()}
+  @type ownet_error :: {:ownet_error, integer()}
   @type error_tuple :: socket_error | ownet_error
 
-  @spec ping(:gen_tcp.socket(), Packet.flag_list()) :: {:ok, boolean()} | error_tuple()
+  @spec ping(:gen_tcp.socket(), Packet.flag_list()) :: :ok | error_tuple()
   def ping(socket, flags \\ []) do
     flags = Packet.calculate_flag(flags, 0)
     req_packet = Packet.create_packet(:NOP, <<>>, flags)
 
     case send_and_receive_response(socket, req_packet) do
-      {:ok, _header, _payload, persistence} -> {:ok, persistence}
+      {:ok, _header, _payload} -> :ok
       error -> error
     end
   end
 
   @spec present(:gen_tcp.socket(), String.t(), Packet.flag_list()) ::
-          {:ok, boolean(), boolean()} | error_tuple()
+          {:ok, boolean()} | error_tuple()
   def present(socket, path, flags \\ []) do
     flags = Packet.calculate_flag(flags, 0)
     req_packet = Packet.create_packet(:PRESENT, path <> <<0>>, flags)
 
     case send_and_receive_response(socket, req_packet) do
-      {:ok, _header, _payload, persistence} -> {:ok, true, persistence}
-      {:ownet_error, ret_code, persistence} when is_integer(ret_code) -> {:ok, false, persistence}
+      {:ok, _header, _payload} -> {:ok, true}
+      {:ownet_error, ret_code} when is_integer(ret_code) -> {:ok, false}
       error -> error
     end
   end
 
   @spec dir(:gen_tcp.socket(), String.t(), Packet.flag_list()) ::
-          {:ok, list(String.t()), boolean()} | error_tuple()
+          {:ok, list(String.t())} | error_tuple()
   def dir(socket, path \\ "/", flags \\ []) do
     flags = Packet.calculate_flag(flags, 0)
     req_packet = Packet.create_packet(:DIRALLSLASH, path <> <<0>>, flags)
 
     case send_and_receive_response_with_payload(socket, req_packet) do
-      {:ok, _header, payload, persistence} ->
+      {:ok, _header, payload} ->
         # "/28.32D7E0080000,/42.C2D154000000\0"
         values =
           payload
           |> String.slice(0..-2//1)
           |> String.split(",")
 
-        {:ok, values, persistence}
+        {:ok, values}
 
       error ->
         error
@@ -53,13 +53,13 @@ defmodule Ownet.Socket do
   end
 
   @spec read(:gen_tcp.socket(), String.t(), Packet.flag_list()) ::
-          {:ok, binary(), boolean()} | error_tuple()
+          {:ok, binary()} | error_tuple()
   def read(socket, path, flags \\ []) do
     flags = Packet.calculate_flag(flags, 0)
     req_packet = Packet.create_packet(:READ, path <> <<0>>, flags, @maxsize, 0)
 
     case send_and_receive_response_with_payload(socket, req_packet) do
-      {:ok, _header, payload, persistence} -> {:ok, payload, persistence}
+      {:ok, _header, payload} -> {:ok, payload}
       error -> error
     end
   end
@@ -69,7 +69,7 @@ defmodule Ownet.Socket do
           String.t(),
           binary() | String.t() | boolean() | :on | :off,
           Packet.flag_list()
-        ) :: {:ok, boolean()} | error_tuple()
+        ) :: :ok | error_tuple()
   def write(socket, path, value, flags \\ [])
   def write(socket, path, true, flags), do: write(socket, path, "1", flags)
   def write(socket, path, :on, flags), do: write(socket, path, "1", flags)
@@ -82,26 +82,26 @@ defmodule Ownet.Socket do
     req_packet = Packet.create_packet(:WRITE, payload, flags, byte_size(value), 0)
 
     case send_and_receive_response(socket, req_packet) do
-      {:ok, _header, _payload, persistence} -> {:ok, persistence}
+      {:ok, _header, _payload} -> :ok
       error -> error
     end
   end
 
   @spec send_and_receive_response(:gen_tcp.socket(), Packet.packet()) ::
-          {:ok, Packet.header(), binary(), boolean()} | error_tuple
+          {:ok, Packet.header(), binary()} | error_tuple
   defp send_and_receive_response(socket, packet) do
     with :ok <- send_message(socket, packet),
-         {:ok, header, payload, persistence} <- receive_next_message(socket) do
-      {:ok, header, payload, persistence}
+         {:ok, header, payload} <- receive_next_message(socket) do
+      {:ok, header, payload}
     end
   end
 
   @spec send_and_receive_response_with_payload(:gen_tcp.socket(), Packet.packet()) ::
-          {:ok, Packet.header(), binary(), boolean()} | error_tuple
+          {:ok, Packet.header(), binary()} | error_tuple
   defp send_and_receive_response_with_payload(socket, packet) do
     with :ok <- send_message(socket, packet),
-         {:ok, header, payload, persistence} <- receive_next_message_with_payload(socket) do
-      {:ok, header, payload, persistence}
+         {:ok, header, payload} <- receive_next_message_with_payload(socket) do
+      {:ok, header, payload}
     end
   end
 
@@ -115,7 +115,7 @@ defmodule Ownet.Socket do
   end
 
   @spec receive_next_message(:gen_tcp.socket()) ::
-          {:ok, Packet.header(), binary(), boolean()} | error_tuple
+          {:ok, Packet.header(), binary()} | error_tuple
   defp receive_next_message(socket) do
     with {:ok, header} <- receive_header(socket),
          {:ok, header, payload} <- receive_payload(socket, header) do
@@ -127,26 +127,26 @@ defmodule Ownet.Socket do
 
       if ret_code >= 0 do
         # IO.inspect({Packet.decode_incoming_packet(header), payload}, label: "ret code >= 0", binaries: :as_strings)
-        {:ok, header, payload, Packet.persistence_granted?(header)}
+        {:ok, header, payload}
       else
         # IO.inspect({Packet.decode_incoming_packet(header), payload}, label: "ret code != 0", binaries: :as_strings)
-        {:ownet_error, -ret_code, Packet.persistence_granted?(header)}
+        {:ownet_error, -ret_code}
       end
     end
   end
 
   @spec receive_next_message_with_payload(:gen_tcp.socket()) ::
-          {:ok, Packet.header(), binary(), boolean()} | error_tuple()
+          {:ok, Packet.header(), binary()} | error_tuple()
   defp receive_next_message_with_payload(socket) do
     case receive_next_message(socket) do
-      {:ok, _header, <<>>, _persistence_granted} ->
+      {:ok, _header, <<>>} ->
         receive_next_message_with_payload(socket)
 
-      {:ok, header, payload, persistence_granted} ->
-        {:ok, header, payload, persistence_granted}
+      {:ok, header, payload} ->
+        {:ok, header, payload}
 
-      {:ownet_error, ret_code, persistence_granted} ->
-        {:ownet_error, ret_code, persistence_granted}
+      {:ownet_error, ret_code} ->
+        {:ownet_error, ret_code}
 
       {:error, reason} ->
         {:error, reason}

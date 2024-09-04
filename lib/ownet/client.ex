@@ -33,8 +33,8 @@ defmodule Ownet.Client do
     case call_and_reconnect_if_closed(client, fn client ->
            Socket.ping(client.socket, flags ++ client.flags)
          end) do
-      {client, {:ok, _persistence}} -> {client, :ok}
-      {client, {:ownet_error, reason, _persistence}} -> {client, {:error, lookup_error(reason)}}
+      {client, :ok} -> {client, :ok}
+      {client, {:ownet_error, reason}} -> {client, {:error, lookup_error(reason)}}
       {client, {:error, reason}} -> {client, {:error, reason}}
     end
   end
@@ -44,8 +44,8 @@ defmodule Ownet.Client do
     case call_and_reconnect_if_closed(client, fn client ->
            Socket.present(client.socket, path, flags ++ client.flags)
          end) do
-      {client, {:ok, present, _persistence}} -> {client, {:ok, present}}
-      {client, {:ownet_error, reason, _persistence}} -> {client, {:error, lookup_error(reason)}}
+      {client, {:ok, present}} -> {client, {:ok, present}}
+      {client, {:ownet_error, reason}} -> {client, {:error, lookup_error(reason)}}
       {client, {:error, reason}} -> {client, {:error, reason}}
     end
   end
@@ -55,8 +55,8 @@ defmodule Ownet.Client do
     case call_and_reconnect_if_closed(client, fn client ->
            Socket.dir(client.socket, path, flags ++ client.flags)
          end) do
-      {client, {:ok, paths, _persistence}} -> {client, {:ok, paths}}
-      {client, {:ownet_error, reason, _persistence}} -> {client, {:error, lookup_error(reason)}}
+      {client, {:ok, paths}} -> {client, {:ok, paths}}
+      {client, {:ownet_error, reason}} -> {client, {:error, lookup_error(reason)}}
       {client, {:error, reason}} -> {client, {:error, reason}}
     end
   end
@@ -66,8 +66,8 @@ defmodule Ownet.Client do
     case call_and_reconnect_if_closed(client, fn client ->
            Socket.read(client.socket, path, flags ++ client.flags)
          end) do
-      {client, {:ok, value, _persistence}} -> {client, {:ok, value}}
-      {client, {:ownet_error, reason, _persistence}} -> {client, {:error, lookup_error(reason)}}
+      {client, {:ok, value}} -> {client, {:ok, value}}
+      {client, {:ownet_error, reason}} -> {client, {:error, lookup_error(reason)}}
       {client, {:error, reason}} -> {client, {:error, reason}}
     end
   end
@@ -77,8 +77,8 @@ defmodule Ownet.Client do
     case call_and_reconnect_if_closed(client, fn client ->
            Socket.write(client.socket, path, value, flags ++ client.flags)
          end) do
-      {client, {:ok, _persistence}} -> {client, :ok}
-      {client, {:ownet_error, reason, _persistence}} -> {client, {:error, lookup_error(reason)}}
+      {client, :ok} -> {client, :ok}
+      {client, {:ownet_error, reason}} -> {client, {:error, lookup_error(reason)}}
       {client, {:error, reason}} -> {client, {:error, reason}}
     end
   end
@@ -131,7 +131,7 @@ defmodule Ownet.Client do
   #  case call_and_reconnect_if_closed(client, fn client ->
   #         Socket.read(client.socket, "/settings/return_codes/text.ALL", client.flags)
   #       end) do
-  #    {client, {:ok, value, _persistence}} -> {:ok, client, value}
+  #    {client, {:ok, value}} -> {:ok, client, value}
   #    {_client, {:error, reason}} -> {:error, reason}
   #  end
   #end
