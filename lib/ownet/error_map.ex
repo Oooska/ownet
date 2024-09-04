@@ -1,5 +1,4 @@
 defmodule Ownet.ErrorMap do
-
   @map %{
     0 => "Good result",
     1 => "Startup - command line parameters invalid",
@@ -214,6 +213,8 @@ defmodule Ownet.ErrorMap do
     210 => "Error number out of range"
   }
 
-  def lookup(error_code) when is_binary(error_code), do: error_code |> String.trim() |> String.to_integer() |> lookup()
+  def lookup(error_code) when is_binary(error_code),
+    do: error_code |> String.trim() |> String.to_integer() |> lookup()
+
   def lookup(error_code), do: Map.get(@map, error_code, "Unknown error: #{error_code}")
 end
