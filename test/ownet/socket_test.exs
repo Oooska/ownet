@@ -6,6 +6,11 @@ defmodule SocketTest do
 
   setup :verify_on_exit!
 
+  setup_all do
+    Mox.defmock(:gen_tcp, for: GenTCPMock)
+    :ok
+  end
+
   test "ping sends NOP command" do
     :gen_tcp
     |> expect(:send, fn _socket, data ->
@@ -15,7 +20,7 @@ defmodule SocketTest do
       end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet()} end)
 
-    assert Socket.ping(:fakesocket) == {:ok, false}
+    assert Socket.ping(:fakesocket) == :ok
   end
 
   test "ping reads persistence flag on return header" do
@@ -23,7 +28,7 @@ defmodule SocketTest do
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(flags: Packet.calculate_flag([:persistence]))} end)
 
-    assert Socket.ping(:fakesocket) == {:ok, true}
+    assert Socket.ping(:fakesocket) == :ok
   end
 
   test "ping returns network error tuple on error" do
@@ -42,7 +47,7 @@ defmodule SocketTest do
       end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet()} end)
 
-    {:ok, present, _} = Socket.present(:fakesocket, "/")
+    {:ok, present} = Socket.present(:fakesocket, "/")
     assert present
   end
 
@@ -51,17 +56,8 @@ defmodule SocketTest do
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(ret: -1)} end)
 
-    {:ok, present, _} = Socket.present(:fakesocket, "/")
+    {:ok, present} = Socket.present(:fakesocket, "/")
     assert present == false
-  end
-
-  test "present reads persistence flag on return header" do
-    :gen_tcp
-    |> expect(:send, fn _socket, _data -> :ok end)
-    |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(flags: Packet.calculate_flag([:persistence]))} end)
-
-    {:ok, _, persistence} = Socket.present(:fakesocket, "/")
-    assert persistence
   end
 
   test "present returns network error tuple on error" do
@@ -84,7 +80,7 @@ defmodule SocketTest do
         {:ok, "/43.E6ABD6010000/,/42.C2D154000000/\0"}
       end)
 
-    {:ok, paths, _} = Socket.dir(:fakesocket, "/")
+    {:ok, paths} = Socket.dir(:fakesocket, "/")
 
     assert "/43.E6ABD6010000/" in paths
     assert "/42.C2D154000000/" in paths
@@ -96,7 +92,7 @@ defmodule SocketTest do
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: 18, size: 17)} end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, "/43.E6ABD6010000/\0"} end)
 
-    {:ok, paths, _} = Socket.dir(:fakesocket, "/")
+    {:ok, paths} = Socket.dir(:fakesocket, "/")
     assert "/43.E6ABD6010000/" in paths
   end
 
@@ -109,18 +105,8 @@ defmodule SocketTest do
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: 18, size: 17)} end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, "/43.E6ABD6010000/\0"} end)
 
-    {:ok, paths, _} = Socket.dir(:fakesocket, "/")
+    {:ok, paths} = Socket.dir(:fakesocket, "/")
     assert "/43.E6ABD6010000/" in paths
-  end
-
-  test "dir reads persistence flag on return header" do
-    :gen_tcp
-    |> expect(:send, fn _socket, _data -> :ok end)
-    |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: 18, size: 17, flags: Packet.calculate_flag([:persistence]))} end)
-    |> expect(:recv, fn _socket, _data -> {:ok, "/43.E6ABD6010000/\0"} end)
-
-    {:ok, _, persistence} = Socket.dir(:fakesocket, "/")
-    assert persistence
   end
 
   test "dir command returns :ownet_error on owfs error" do
@@ -128,7 +114,7 @@ defmodule SocketTest do
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(ret: -1)} end)
 
-    {:ownet_error, reason, _persistence} = Socket.dir(:fakesocket, "/badpath")
+    {:ownet_error, reason} = Socket.dir(:fakesocket, "/badpath")
     assert reason == 1
   end
 
@@ -146,7 +132,7 @@ defmodule SocketTest do
         {:ok, "       21.25"}
       end)
 
-    {:ok, value, _} = Socket.read(:fakesocket, "/28.32D7E0080000/temperature")
+    {:ok, value} = Socket.read(:fakesocket, "/28.32D7E0080000/temperature")
     assert value == "       21.25"
   end
 
@@ -159,26 +145,17 @@ defmodule SocketTest do
     |> expect(:recv, fn _socket, _bytes -> {:ok, return_packet(payloadsize: 12, ret: 12, size: 12)} end)
     |> expect(:recv, fn _socket, _bytes -> {:ok, "       21.25"} end)
 
-    {:ok, value, _} = Socket.read(:fakesocket, "/28.32D7E0080000/temperature")
+    {:ok, value} = Socket.read(:fakesocket, "/28.32D7E0080000/temperature")
     assert value == "       21.25"
   end
 
-  test "read reads persistence flag on return header" do
-    :gen_tcp
-    |> expect(:send, fn _socket, _data -> :ok end)
-    |> expect(:recv, fn _socket, _bytes -> {:ok, return_packet(payloadsize: 12, ret: 12, size: 12, flags: Packet.calculate_flag([:persistence]))} end)
-    |> expect(:recv, fn _socket, _data -> {:ok, "       21.25"} end)
-
-    {:ok, _, persistence} = Socket.read(:fakesocket, "/")
-    assert persistence
-  end
 
   test "read command returns :ownet_error on owfs error" do
     :gen_tcp
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(ret: -1)} end)
 
-    {:ownet_error, reason, _persistence} = Socket.read(:fakesocket, "/badpath")
+    {:ownet_error, reason} = Socket.read(:fakesocket, "/badpath")
     assert reason == 1
   end
 
@@ -200,8 +177,7 @@ defmodule SocketTest do
       end)
     |> expect(:recv, fn _socket, _bytes -> {:ok, return_packet(size: 1)} end)
 
-    {ok, _} = Socket.write(:fakesocket, "/42.C2D154000000/PIO.A", "1")
-    assert ok == :ok
+    assert :ok == Socket.write(:fakesocket, "/42.C2D154000000/PIO.A", "1")
   end
 
   test "write command returns :ownet_error on owfs error" do
@@ -209,7 +185,7 @@ defmodule SocketTest do
     |> expect(:send, fn _socket, _data -> :ok end)
     |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(ret: -1)} end)
 
-    {:ownet_error, reason, _persistence} = Socket.write(:fakesocket, "/badpath", "1")
+    {:ownet_error, reason} = Socket.write(:fakesocket, "/badpath", "1")
     assert reason == 1
   end
 
