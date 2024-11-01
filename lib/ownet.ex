@@ -117,10 +117,10 @@ defmodule Ownet do
 
   """
   # Client API
-
   def start_link(address,  opts \\ []) do
-    name = Keyword.get(opts, :name, __MODULE__)
-    GenServer.start_link(__MODULE__, Keyword.put(opts, :address, address), name: name)
+    name = Keyword.get(opts, :name)
+    server_opts = if name, do: [name: name], else: []
+    GenServer.start_link(__MODULE__, Keyword.put(opts, :address, address), server_opts)
   end
 
   @doc """
@@ -166,7 +166,6 @@ defmodule Ownet do
   Reads the value at the specified path in the 1-Wire network.
 
   ## Params
-
   - `path`: A string representing the path in the 1-Wire network.
   - `opts`: A keyword list of options. It also accepts `:flags` option.
 
@@ -209,11 +208,11 @@ defmodule Ownet do
     with {:ok, value} <- read(pid, path, opts) do
       case value do
         "0" -> {:ok, false}
-        0 -> {:ok, false}
         "1" -> {:ok, true}
-        1 -> {:ok, true}
         "false" -> {:ok, false}
         "true" -> {:ok, true}
+        <<0>> -> {:ok, false}
+        <<1>> -> {:ok, true}
         _ -> {:error, "Not a boolean"}
       end
     end
@@ -276,7 +275,7 @@ defmodule Ownet do
     {:reply, ret_val, client}
   end
 
-  @spec parse_float(String.t()) :: float() | :error
+  @spec parse_float(String.t()) :: {float(), binary()} | :error
   defp parse_float(value) do
     # Converts "        23.5" to 23.5
     value
