@@ -117,9 +117,11 @@ defmodule Ownet do
 
   """
   # Client API
-  def start_link(address,  opts \\ []) do
+  def start_link(opts \\ []) do
+    address = Keyword.get(opts, :address, ~c"localhost")
     name = Keyword.get(opts, :name)
     server_opts = if name, do: [name: name], else: []
+
     GenServer.start_link(__MODULE__, Keyword.put(opts, :address, address), server_opts)
   end
 
