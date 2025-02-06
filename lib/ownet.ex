@@ -187,13 +187,8 @@ defmodule Ownet do
 
   """
   def read_float(pid, path, opts \\ []) do
-    with {:ok, value} <- read(pid, path, opts),
-         {float, _} <- parse_float(value) do
-      {:ok, float}
-    else
-      :error -> {:error, "Not a float"}
-      error -> error
-    end
+    read(pid, path, opts)
+    |> parse_float
   end
 
   @doc """
@@ -215,7 +210,7 @@ defmodule Ownet do
         "true" -> {:ok, true}
         <<0>> -> {:ok, false}
         <<1>> -> {:ok, true}
-        _ -> {:error, "Not a boolean"}
+        _ -> {:error, :invalid_type}
       end
     end
   end
@@ -277,11 +272,12 @@ defmodule Ownet do
     {:reply, ret_val, client}
   end
 
-  @spec parse_float(String.t()) :: {float(), binary()} | :error
-  defp parse_float(value) do
+  defp parse_float({:error, reason}), do: {:error, reason}
+  defp parse_float({:ok, value}) do
     # Converts "        23.5" to 23.5
-    value
-    |> String.trim()
-    |> Float.parse()
+    case value |> String.trim() |> Float.parse() do
+      :error -> {:error, :invalid_type}
+      {float, _} -> {:ok, float}
+    end
   end
 end
