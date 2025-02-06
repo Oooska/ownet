@@ -37,18 +37,17 @@ defmodule Ownet.Socket do
     flags = Packet.calculate_flag(flags, 0)
     req_packet = Packet.create_packet(:DIRALLSLASH, path <> <<0>>, flags)
 
-    case send_and_receive_response_with_payload(socket, req_packet) do
+    case send_and_receive_response(socket, req_packet) do
       {:ok, _header, payload} ->
         # "/28.32D7E0080000,/42.C2D154000000\0"
         values =
           payload
           |> String.slice(0..-2//1)
-          |> String.split(",")
+          |> split_unless_empty(",")
 
         {:ok, values}
 
-      error ->
-        error
+      error -> error
     end
   end
 
@@ -172,4 +171,7 @@ defmodule Ownet.Socket do
       {:ok, header, <<>>}
     end
   end
+
+  defp split_unless_empty("", _), do: []
+  defp split_unless_empty(string, sep), do: String.split(string, sep)
 end
