@@ -57,7 +57,7 @@ defmodule Ownet.Socket do
     flags = Packet.calculate_flag(flags, 0)
     req_packet = Packet.create_packet(:READ, path <> <<0>>, flags, @maxsize, 0)
 
-    case send_and_receive_response_with_payload(socket, req_packet) do
+    case send_and_receive_response(socket, req_packet) do
       {:ok, _header, payload} -> {:ok, payload}
       error -> error
     end
@@ -95,15 +95,6 @@ defmodule Ownet.Socket do
     end
   end
 
-  @spec send_and_receive_response_with_payload(:gen_tcp.socket(), Packet.packet()) ::
-          {:ok, Packet.header(), binary()} | error_tuple
-  defp send_and_receive_response_with_payload(socket, packet) do
-    with :ok <- send_message(socket, packet),
-         {:ok, header, payload} <- receive_next_message_with_payload(socket) do
-      {:ok, header, payload}
-    end
-  end
-
   @spec send_message(:gen_tcp.socket(), binary()) :: :ok | socket_error
   defp send_message(socket, packet) do
     Logger.debug(
@@ -124,31 +115,11 @@ defmodule Ownet.Socket do
 
       ret_code = Packet.return_code(header)
 
-      if ret_code >= 0 do
-        # IO.inspect({Packet.decode_incoming_packet(header), payload}, label: "ret code >= 0", binaries: :as_strings)
-        {:ok, header, payload}
-      else
-        # IO.inspect({Packet.decode_incoming_packet(header), payload}, label: "ret code != 0", binaries: :as_strings)
-        {:ownet_error, -ret_code}
+      cond do
+        still_processing?(header) -> receive_next_message(socket)
+        ret_code >= 0 -> {:ok, header, payload}
+        true -> {:ownet_error, -ret_code}
       end
-    end
-  end
-
-  @spec receive_next_message_with_payload(:gen_tcp.socket()) ::
-          {:ok, Packet.header(), binary()} | error_tuple()
-  defp receive_next_message_with_payload(socket) do
-    case receive_next_message(socket) do
-      {:ok, _header, <<>>} ->
-        receive_next_message_with_payload(socket)
-
-      {:ok, header, payload} ->
-        {:ok, header, payload}
-
-      {:ownet_error, ret_code} ->
-        {:ownet_error, ret_code}
-
-      {:error, reason} ->
-        {:error, reason}
     end
   end
 
@@ -171,6 +142,8 @@ defmodule Ownet.Socket do
       {:ok, header, <<>>}
     end
   end
+
+  defp still_processing?(header), do: Packet.payload_size(header) == -1
 
   defp split_unless_empty("", _), do: []
   defp split_unless_empty(string, sep), do: String.split(string, sep)
