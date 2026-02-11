@@ -9,6 +9,8 @@ defmodule Ownet.Client do
           socket: :gen_tcp.socket() | nil
         }
 
+  @type error :: {t(), {:error, String.t() | :inet.posix()}}
+
   # Ownet.Client is a struct that holds the address, port, flags, and socket of the client.
   # The functions return a tuple with the updated client socket and the result of the operation.
 
@@ -29,62 +31,50 @@ defmodule Ownet.Client do
   end
 
   @spec ping(t(), Packet.flag_list()) ::
-          {t(), :ok} | {t(), {:error, :inet.posix()}} | {t(), {:error, String.t()}}
+          {t(), :ok} | error()
   def ping(client, flags \\ []) do
-    case call_and_reconnect_if_closed(client, fn client ->
-           Socket.ping(client.socket, flags ++ client.flags)
-         end) do
-      {client, :ok} -> {client, :ok}
-      {client, {:ownet_error, reason}} -> {client, {:error, lookup_error(reason)}}
-      {client, {:error, reason}} -> {client, {:error, reason}}
-    end
+    try_command(client, fn client ->
+      Socket.ping(client.socket, flags ++ client.flags)
+    end)
   end
 
   @spec present(t(), String.t(), Packet.flag_list()) ::
-          {t(), {:ok, boolean()}} | {t(), {:error, :inet.posix()}} | {t(), {:error, String.t()}}
+          {t(), {:ok, boolean()}} | error()
   def present(client, path, flags \\ []) do
-    case call_and_reconnect_if_closed(client, fn client ->
-           Socket.present(client.socket, path, flags ++ client.flags)
-         end) do
-      {client, {:ok, present}} -> {client, {:ok, present}}
-      {client, {:ownet_error, reason}} -> {client, {:error, lookup_error(reason)}}
-      {client, {:error, reason}} -> {client, {:error, reason}}
-    end
+    try_command(client, fn client ->
+      Socket.present(client.socket, path, flags ++ client.flags)
+    end)
   end
 
   @spec dir(t(), String.t(), Packet.flag_list()) ::
           {t(), {:ok, list(String.t())}}
-          | {t(), {:error, :inet.posix()}}
-          | {t(), {:error, String.t()}}
+          | error()
   def dir(client, path, flags \\ []) do
-    case call_and_reconnect_if_closed(client, fn client ->
-           Socket.dir(client.socket, path, flags ++ client.flags)
-         end) do
-      {client, {:ok, paths}} -> {client, {:ok, paths}}
-      {client, {:ownet_error, reason}} -> {client, {:error, lookup_error(reason)}}
-      {client, {:error, reason}} -> {client, {:error, reason}}
-    end
+    try_command(client, fn client ->
+      Socket.dir(client.socket, path, flags ++ client.flags)
+    end)
   end
 
   @spec read(t(), String.t(), Packet.flag_list()) ::
-          {t(), {:ok, binary()}} | {t(), {:error, :inet.posix()}} | {t(), {:error, String.t()}}
+          {t(), {:ok, binary()}} | error()
   def read(client, path, flags \\ []) do
-    case call_and_reconnect_if_closed(client, fn client ->
-           Socket.read(client.socket, path, flags ++ client.flags)
-         end) do
-      {client, {:ok, value}} -> {client, {:ok, value}}
-      {client, {:ownet_error, reason}} -> {client, {:error, lookup_error(reason)}}
-      {client, {:error, reason}} -> {client, {:error, reason}}
-    end
+    try_command(client, fn client ->
+      Socket.read(client.socket, path, flags ++ client.flags)
+    end)
   end
 
   @spec write(t(), String.t(), binary(), Packet.flag_list()) ::
-          {t(), :ok} | {t(), {:error, :inet.posix()}} | {t(), {:error, String.t()}}
+          {t(), :ok} | error()
   def write(client, path, value, flags \\ []) do
-    case call_and_reconnect_if_closed(client, fn client ->
-           Socket.write(client.socket, path, value, flags ++ client.flags)
-         end) do
+    try_command(client, fn client ->
+      Socket.write(client.socket, path, value, flags ++ client.flags)
+    end)
+  end
+
+  defp try_command(client, func) do
+    case call_and_reconnect_if_closed(client, func) do
       {client, :ok} -> {client, :ok}
+      {client, {:ok, value}} -> {client, {:ok, value}}
       {client, {:ownet_error, reason}} -> {client, {:error, lookup_error(reason)}}
       {client, {:error, reason}} -> {client, {:error, reason}}
     end
