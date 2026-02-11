@@ -150,7 +150,7 @@ defmodule Ownet.Packet do
   @doc """
   Creates an outgoing OWFS packet with the given parameters.
 
-  ## Params
+  ## Parameters
 
   - `type`: A `message_type` that represents the type of the message. This should be one of the values defined in `@message_types`.
   - `payload`: A `bitstring` that represents the payload of the packet.

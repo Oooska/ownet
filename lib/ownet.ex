@@ -5,10 +5,14 @@ defmodule Ownet do
 
   alias Ownet.Client
 
+  @type ownet :: GenServer.server()
+  @type error :: {:error, atom()} | {:error, String.t()}
+
   @moduledoc """
-  The `Ownet` module provides a client API to interact with an owserver from the OWFS (1-wire file system) family. It
-  provides a set of functions to communicate with owserver, making it possible to read, write and check the presence of
-  paths in the 1-Wire network.
+  The `Ownet` module provides a client API to interact with an owserver from the OWFS
+  (1-Wire file system) family. It provides a set of functions to communicate with
+  owserver, making it possible to read, write, and check the presence of paths in the
+  1-Wire network.
 
   ## Client API
 
@@ -22,103 +26,117 @@ defmodule Ownet do
   - `write/3`: This function writes a value to a property at a given path.
 
   ## Multiple servers
-  Multiple processes to communicate with different servers can be specified with the :name option.
+  Multiple processes to communicate with different servers can be specified with the `:name` option.
 
   ## Connection
-  The Ownet protocol was initially designed to be 'stateless' and would allow only one command per connection. By default, the
-  `:persistence` flag is set, which will try and re-use the socket. If the server indicates persistence is not granted, the socket
-  is closed and tossed out. The client will attempt to seamlessly reconnect when the next command is issued.
+  The Ownet protocol was initially designed to be "stateless" and would allow only one
+  command per connection. By default, the `:persistence` flag is set, which will try
+  to reuse the socket. If the server indicates persistence is not granted, the socket
+  is closed and discarded. The client will attempt to seamlessly reconnect when the
+  next command is issued.
 
-  If persistence is granted, but the socket times out, an error will be returned. Attempting the operation again will create a new
-  socket and the operation may succeed.
+  If persistence is granted, but the socket times out, an error will be returned.
+  Attempting the operation again will create a new socket and the operation may succeed.
 
   ## Errors
-  Ownet reads and stores the error codes from owserver at initialization, allowing the client to handle error scenarios appropriately.
-  Network socket errors are returned in the form {:error, :inet.posix()}, and usually indicate the server is not reachable  or the
-  socket timed out.
+  Ownet reads and stores the error codes from owserver at initialization, allowing the
+  client to handle error scenarios appropriately. Network socket errors are returned in
+  the form {:error, :inet.posix()}, and usually indicate the server is not reachable
+  or the socket timed out.
 
-  Errors returned from the owserver directly are in the form {:error, String.t()}. These indicate that the client is communicating
-  with the owserver, but it did not like the command. The device is no longer being seen by the bus
-  ({:error, "Startup - command line parameters invalid"}), device communication error ({:error, "Device - Device name bad CRC8"}),
-  or the request was malformed for some reason (e.g. a bug in the library).
+  Errors returned from the owserver directly are in the form {:error, String.t()}. These
+  indicate that the client is communicating with the owserver, but it did not like the
+  command. The device is no longer being seen by the bus
+  ({:error, "Startup - command line parameters invalid"}), device communication error
+  ({:error, "Device - Device name bad CRC8"}), or the request was malformed for some
+  other reason.
 
   ## Flags
-  Flags can be passed during start_link initializing, in which case those flags will be sent with every command.
-  Flags can also be specified when sending the command; these will be applied alongside the default ones.
-  If you specify multiple conflicting flags (e.g. [:c, :f, :k]), results are unspecified.
+  Flags can be passed during `start_link/1` initialization, in which case those flags
+  will be sent with every command. Flags can also be specified when sending the
+  command; these will be applied alongside the default ones. If you specify multiple
+  conflicting flags (e.g. [:c, :f, :k]), results are unspecified.
 
   - `:persistence` - Reuse the network socket for multiple commands. This is a default option.
-  - `:uncached` - Skips the owfs cache. Default owfs configuration caches responses for ~15 seconds; the flag `:uncached` will force
-      owserver to read the value from the sensor. An alternative to using the flag is to prepend "uncached" to a path,
-      e.g. `Ownet.read("uncached/42.C2D154000000/temperature")`
+  - `:uncached` - Skips the owfs cache. Default owfs configuration caches responses for
+    ~15 seconds; the flag `:uncached` will force owserver to read the value from the
+    sensor. An alternative to using the flag is to prepend "uncached" to a path, e.g.
+    `Ownet.read("uncached/42.C2D154000000/temperature")`
   - `:c`, `:f`, `:k`, `:r` - Specifies temperature scale. `:c` is default.
   - `:mbar`, `:atm`, `:mmhg`, `:inhg`, `:psi`  - Specifies pressure scale. `:mbar` is default.
-  - `:bus_ret` - Shows 'special' or 'hidden' directories in dir() command responses, such as `/system/`.
+  - `:bus_ret` - Shows "special" or "hidden" directories in `dir/2` command responses,
+    such as `/system/`.
   - `:fdi`, `:fi`, `:fdidc`, `:fdic`, `:fidc`, `:fic` - Changes the way one wire addresses are displayed. `:fdi` is default.
-  - There's a few other available flags that aren't documented due to lack of relevancy. See the Packet source for more info.
+  - There are a few other available flags that aren't documented due to lack of
+    relevancy. See the Packet source for more info.
 
   ## Examples
-  ```
-  # iex(1)> Logger.configure(level: :warn)
-  # :ok
-  # iex(2)> {:ok, pid} = Ownet.start_link('localhost')
-  # {:ok, #PID<0.151.0>}
-  # iex(3)> Ownet.dir(pid)
-  # {:ok, ["/42.C2D154000000/", "/43.E6ABD6010000/"]}
-  # iex(4)> Ownet.dir(pid, "/42.C2D154000000/")
-  # {:ok,
-  # ["/42.C2D154000000/PIO.BYTE", "/42.C2D154000000/PIO.ALL",
-  #   "/42.C2D154000000/PIO.A", "/42.C2D154000000/PIO.B",
-  #   "/42.C2D154000000/address", "/42.C2D154000000/alias", "/42.C2D154000000/crc8",
-  #   "/42.C2D154000000/family", "/42.C2D154000000/fasttemp", "/42.C2D154000000/id",
-  #   "/42.C2D154000000/latch.BYTE", "/42.C2D154000000/latch.ALL",
-  #   "/42.C2D154000000/latch.A", "/42.C2D154000000/latch.B",
-  #   "/42.C2D154000000/latesttemp", "/42.C2D154000000/locator",
-  #   "/42.C2D154000000/power", "/42.C2D154000000/r_address",
-  #   "/42.C2D154000000/r_id", "/42.C2D154000000/r_locator",
-  #   "/42.C2D154000000/sensed.BYTE", "/42.C2D154000000/sensed.ALL",
-  #   "/42.C2D154000000/sensed.A", "/42.C2D154000000/sensed.B",
-  #   "/42.C2D154000000/temperature", "/42.C2D154000000/temperature10",
-  #   "/42.C2D154000000/temperature11", "/42.C2D154000000/temperature12",
-  #   "/42.C2D154000000/temperature9", "/42.C2D154000000/tempres",
-  #   "/42.C2D154000000/type"]}
-  # iex(5)> Ownet.read(pid, "/42.C2D154000000/temperature")
-  # {:ok, "      22.625"}
-  # iex(6)> Ownet.read_float(pid, "/42.C2D154000000/temperature")
-  # {:ok, 22.625}
-  # iex(7)> Ownet.read_float(pid, "/42.C2D154000000/temperature", flags: [:f])
-  # {:ok, 72.725}
-  # iex(8)> Ownet.read(pid, "/42.C2D154000000/PIO.A")
-  # {:ok, "1"}
-  # iex(9)> Ownet.write(pid, "/42.C2D154000000/PIO.A", false)
-  # :ok
-  # iex(10)> Ownet.read(pid, "/42.C2D154000000/PIO.A")
-  # {:ok, "0"}
-  # iex(11)> Ownet.read_bool(pid, "/42.C2D154000000/PIO.A")
-  # {:ok, false}
-  # iex(12)> Ownet.present(pid, "/42.C2D154000000/")
-  # {:ok, true}
-  # iex(13)> Ownet.present(pid, "/NOTPRESENT/")
-  # {:ok, false}
+  ```elixir
+  iex(1)> {:ok, pid} = Ownet.start_link('localhost')
+  {:ok, #PID<0.151.0>}
+  iex(32)> Ownet.dir(pid)
+  {:ok, ["/42.C2D154000000/", "/43.E6ABD6010000/"]}
+  iex(3)> Ownet.dir(pid, "/42.C2D154000000/")
+  {:ok,
+  ["/42.C2D154000000/PIO.BYTE", "/42.C2D154000000/PIO.ALL",
+    "/42.C2D154000000/PIO.A", "/42.C2D154000000/PIO.B",
+    "/42.C2D154000000/address", "/42.C2D154000000/alias", "/42.C2D154000000/crc8",
+    "/42.C2D154000000/family", "/42.C2D154000000/fasttemp", "/42.C2D154000000/id",
+    "/42.C2D154000000/latch.BYTE", "/42.C2D154000000/latch.ALL",
+    "/42.C2D154000000/latch.A", "/42.C2D154000000/latch.B",
+    "/42.C2D154000000/latesttemp", "/42.C2D154000000/locator",
+    "/42.C2D154000000/power", "/42.C2D154000000/r_address",
+    "/42.C2D154000000/r_id", "/42.C2D154000000/r_locator",
+    "/42.C2D154000000/sensed.BYTE", "/42.C2D154000000/sensed.ALL",
+    "/42.C2D154000000/sensed.A", "/42.C2D154000000/sensed.B",
+    "/42.C2D154000000/temperature", "/42.C2D154000000/temperature10",
+    "/42.C2D154000000/temperature11", "/42.C2D154000000/temperature12",
+    "/42.C2D154000000/temperature9", "/42.C2D154000000/tempres",
+    "/42.C2D154000000/type"]}
+  iex(4)> Ownet.read(pid, "/42.C2D154000000/temperature")
+  {:ok, "      22.625"}
+  iex(5)> Ownet.read_float(pid, "/42.C2D154000000/temperature")
+  {:ok, 22.625}
+  iex(6)> Ownet.read_float(pid, "/42.C2D154000000/temperature", flags: [:f])
+  {:ok, 72.725}
+  iex(7)> Ownet.read(pid, "/42.C2D154000000/PIO.A")
+  {:ok, "1"}
+  iex(8)> Ownet.write(pid, "/42.C2D154000000/PIO.A", false)
+  :ok
+  iex(9)> Ownet.read(pid, "/42.C2D154000000/PIO.A")
+  {:ok, "0"}
+  iex(10)> Ownet.read_bool(pid, "/42.C2D154000000/PIO.A")
+  {:ok, false}
+  iex(11)> Ownet.present(pid, "/42.C2D154000000/")
+  {:ok, true}
+  iex(12)> Ownet.present(pid, "/NOTPRESENT/")
+  {:ok, false}
 
+  # You can tell all the powered temperature sensors to start reading all of the
+  # powered temperature sensors simultaneously, and then read them quickly without
+  # waiting for the analog-to-digital conversion:
 
-  # You can tell all the powered temperature sensors to start reading all of the powered
-  # temperature sensors simultaneously, and then read them quickly without waiting for the
-  # analog-to-digital conversion:
-
-  # iex(14)> Ownet.write("/simultaneous/temperature", true)
-  # :ok
+  iex(13)> Ownet.write(pid, "/simultaneous/temperature", true)
+  :ok
 
   # Wait ~0.75 seconds
 
-  # iex(15)> Ownet.read("uncached/42.C2D154000000/latesttemp")
-  # {:ok, "     22.1875"}
+  iex(14)> Ownet.read(pid, "uncached/42.C2D154000000/latesttemp")
+  {:ok, "     22.1875"}
   ```
 
   """
+
   # Client API
 
   @doc """
+  Starts Ownet with the provided options and links it to the current process.
+
+  To add Ownet to a supervision tree:
+  ```elixir
+  {Ownet, name: MyOwnet, address: "localhost", port: 4304, flags: [:uncached, :f, :persistence]}
+  ```
+
 
   ## Options
   - `:address` - The address of the owserver. This can be a charlist or a binary. The default is "localhost".
@@ -135,26 +153,28 @@ defmodule Ownet do
   end
 
   @doc """
-  Sends a ping request to the owserver to check the connection status. Returns :ok on success, or
-  an error tuple.
+  Sends a ping request to the owserver to check the connection status. Returns :ok on success,
+  or an error tuple.
 
-  ## Params
+  ## Parameters
 
   - `opts` - Accepts flags (that don't do anything for a ping command aside from `[:persistence]`)
   """
+  @spec ping(ownet(), Keyword.t()) :: :ok | error()
   def ping(pid, opts \\ []) do
     flags = Keyword.get(opts, :flags, [])
     GenServer.call(pid, {:ping, flags})
   end
 
   @doc """
-  Checks if a path is present in the 1-Wire network. Returns `{:ok, true}` or `{:ok, false}` depending on if the path is
-  present on the one wire bus.
+  Checks if a path is present in the 1-Wire network. Returns `{:ok, true}` or
+  `{:ok, false}` depending on if the path is present on the 1-Wire bus.
 
-  ## Params
+  ## Parameters
   - `path`: A string representing the path in the 1-Wire network.
   - `opts`: A keyword list of options. It also accepts `:flags` option.
   """
+  @spec present(ownet(), String.t(), Keyword.t()) :: {:ok, boolean()} | error()
   def present(pid, path, opts \\ []) do
     flags = Keyword.get(opts, :flags, [])
     GenServer.call(pid, {:present, path, flags})
@@ -163,11 +183,11 @@ defmodule Ownet do
   @doc """
   Lists the directory at the specified path in the 1-Wire network.
 
-  ## Params
+  ## Parameters
   - `path`: A string representing the path in the 1-Wire network. The default is the root ("/").
   - `opts`: A keyword list of options. It also accepts `:flags` option.
   """
-  @spec dir(String.t(), Keyword.t()) :: {:ok, list(String.t())} | {:error, atom()}
+  @spec dir(ownet(), String.t(), Keyword.t()) :: {:ok, list(String.t())} | error()
   def dir(pid, path, opts \\ []) do
     flags = Keyword.get(opts, :flags, [])
     GenServer.call(pid, {:dir, path, flags})
@@ -176,11 +196,12 @@ defmodule Ownet do
   @doc """
   Reads the value at the specified path in the 1-Wire network.
 
-  ## Params
+  ## Parameters
   - `path`: A string representing the path in the 1-Wire network.
   - `opts`: A keyword list of options. It also accepts `:flags` option.
 
   """
+  @spec read(ownet(), String.t(), Keyword.t()) :: {:ok, binary()} | error()
   def read(pid, path, opts \\ []) do
     flags = Keyword.get(opts, :flags, [])
     GenServer.call(pid, {:read, path, flags}, 25000)
@@ -189,12 +210,13 @@ defmodule Ownet do
   @doc """
   Reads the value at the specified path in the 1-Wire network, and attempts to convert it to an integer value.
 
-  ## Params
+  ## Parameters
 
   - `path`: A string representing the path in the 1-Wire network.
   - `opts`: A keyword list of options. It also accepts `:flags` option.
 
   """
+  @spec read_int(ownet(), String.t(), Keyword.t()) :: {:ok, integer()} | error()
   def read_int(pid, path, opts \\ []) do
     read(pid, path, opts)
     |> maybe_parse_int
@@ -203,25 +225,28 @@ defmodule Ownet do
   @doc """
   Reads the value at the specified path in the 1-Wire network, and attempts to convert it to a floating-point value.
 
-  ## Params
+  ## Parameters
   - `path`: A string representing the path in the 1-Wire network.
   - `opts`: A keyword list of options. It also accepts `:flags` option.
 
   """
+  @spec read_float(ownet(), String.t(), Keyword.t()) :: {:ok, float()} | error()
   def read_float(pid, path, opts \\ []) do
     read(pid, path, opts)
     |> maybe_parse_float
   end
 
   @doc """
-    Reads the value at the specified path in the 1-Wire network, and attempts to convert it to a boolean value.
-    "0", 0, and "false" all convert to :false. "1", 1, and "true" all convert to :true. Other values return `{:error, :invalid_type}`.
+  Reads the value at the specified path in the 1-Wire network, and attempts to convert
+  it to a boolean value. "0", 0, and "false" all convert to :false. "1", 1, and
+  "true" all convert to :true. Other values return `{:error, :invalid_type}`.
 
-    ## Params
-    - `path`: A string representing the path in the 1-Wire network.
-    - `opts`: A keyword list of options. It also accepts `:flags` option.
+  ## Parameters
+  - `path`: A string representing the path in the 1-Wire network.
+  - `opts`: A keyword list of options. It also accepts `:flags` option.
 
   """
+  @spec read_bool(ownet(), String.t(), Keyword.t()) :: {:ok, boolean()} | error()
   def read_bool(pid, path, opts \\ []) do
     with {:ok, value} <- read(pid, path, opts) do
       case value do
@@ -239,14 +264,16 @@ defmodule Ownet do
   @doc """
   Writes a value to the specified path in the 1-Wire network.
 
-  ## Params
+  ## Parameters
 
   - `path`: A string representing the path in the 1-Wire network.
-  - `value`: The value to write. This must be a binary value, or one of the values true, :on, false, :off.
-      These convert to "1" and "0" respectively.
+  - `value`: The value to write. This must be a binary value, or one of the values
+    true, :on, false, :off. These convert to "1" and "0" respectively.
   - `opts`: A keyword list of options. It also accepts `:flags` option.
 
   """
+  @spec write(ownet(), String.t(), binary() | String.t() | boolean() | :on | :off, Keyword.t()) ::
+          :ok | error()
   def write(pid, path, value, opts \\ []) do
     flags = Keyword.get(opts, :flags, [])
     GenServer.call(pid, {:write, path, value, flags})
@@ -261,7 +288,6 @@ defmodule Ownet do
 
     {:ok, Client.new(address, port, flags)}
   end
-
 
   @impl true
   def handle_call({:ping, flags}, _from, state) do
@@ -294,6 +320,7 @@ defmodule Ownet do
   end
 
   defp maybe_parse_float({:error, reason}), do: {:error, reason}
+
   defp maybe_parse_float({:ok, value}) do
     # Converts "        23.5" to 23.5
     case value |> String.trim() |> Float.parse() do
@@ -303,6 +330,7 @@ defmodule Ownet do
   end
 
   defp maybe_parse_int({:error, reason}), do: {:error, reason}
+
   defp maybe_parse_int({:ok, value}) do
     case value |> String.trim() |> Integer.parse() do
       :error -> {:error, :invalid_type}
