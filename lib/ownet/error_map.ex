@@ -214,7 +214,8 @@ defmodule Ownet.ErrorMap do
   }
 
   def lookup(error_code) when is_binary(error_code),
-    do: error_code |> String.trim() |> String.to_integer() |> lookup()
+    do: error_code |> String.trim() |> Integer.parse() |> lookup()
 
+  def lookup({error_code, _remainder}), do: lookup(error_code)
   def lookup(error_code), do: Map.get(@map, error_code, "Unknown error: #{error_code}")
 end
