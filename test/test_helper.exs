@@ -13,6 +13,14 @@ defmodule SocketMock do
   @callback write(:gen_tcp.socket(), String.t(), binary(), Packet.flag_list()) :: :ok | {:error, :inet.posix()}
 end
 
+defmodule ClientMock do
+  @callback new(charlist, integer, Packet.flag_list()) :: {:ok, :gen_tcp.socket()} | {:error, :inet.posix()}
+  @callback ping(Ownet.Client.t()) :: {:ok, Ownet.Client.t()} | {:error, :inet.posix()}
+  @callback present(Ownet.Client.t(), String.t(), Packet.flag_list()) :: {:ok, boolean()} | {:error, :inet.posix()}
+  @callback dir(Ownet.Client.t(), String.t(), Packet.flag_list()) :: {:ok, list(String.t())} | {:error, :inet.posix()}
+  @callback read(Ownet.Client.t(), String.t(), Packet.flag_list()) :: {:ok, binary()} | {:error, :inet.posix()}
+  @callback write(Ownet.Client.t(), String.t(), binary(), Packet.flag_list()) :: :ok | {:error, :inet.posix()}
+end
 
 Code.put_compiler_option(:ignore_module_conflict, true)
 :code.unstick_mod(:gen_tcp)
