@@ -1,5 +1,4 @@
 defmodule Ownet.Socket do
-  require Logger
   alias Ownet.Packet
 
   @maxsize 65536
@@ -47,7 +46,8 @@ defmodule Ownet.Socket do
 
         {:ok, values}
 
-      error -> error
+      error ->
+        error
     end
   end
 
@@ -97,10 +97,6 @@ defmodule Ownet.Socket do
 
   @spec send_message(:gen_tcp.socket(), binary()) :: :ok | socket_error
   defp send_message(socket, packet) do
-    Logger.debug(
-      "Sending message: #{inspect(Packet.decode_outgoing_packet(packet), binaries: :as_strings)}"
-    )
-
     :gen_tcp.send(socket, packet)
   end
 
@@ -109,10 +105,6 @@ defmodule Ownet.Socket do
   defp receive_next_message(socket) do
     with {:ok, header} <- receive_header(socket),
          {:ok, header, payload} <- receive_payload(socket, header) do
-      Logger.debug(
-        "Received message: #{inspect(Packet.decode_incoming_packet(header <> payload), binaries: :as_strings)}"
-      )
-
       ret_code = Packet.return_code(header)
 
       cond do
