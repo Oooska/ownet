@@ -117,6 +117,15 @@ defmodule Ownet do
 
   """
   # Client API
+
+  @doc """
+
+  ## Options
+  - `:address` - The address of the owserver. This can be a charlist or a binary. The default is "localhost".
+  - `:port` - The port of the owserver. The default is 4304.
+  - `:flags` - A list of flags to apply to every command. See the module documentation for more details on available flags.
+  - `:name` - An optional name to register the GenServer under.
+  """
   def start_link(opts \\ []) do
     address = Keyword.get(opts, :address, ~c"localhost")
     name = Keyword.get(opts, :name)
@@ -178,7 +187,7 @@ defmodule Ownet do
   end
 
   @doc """
-  Reads the value at the specified path in the 1-Wire network, and attempts to convert it to a floating-point value.
+  Reads the value at the specified path in the 1-Wire network, and attempts to convert it to an integer value.
 
   ## Params
 
@@ -186,17 +195,29 @@ defmodule Ownet do
   - `opts`: A keyword list of options. It also accepts `:flags` option.
 
   """
+  def read_int(pid, path, opts \\ []) do
+    read(pid, path, opts)
+    |> maybe_parse_int
+  end
+
+  @doc """
+  Reads the value at the specified path in the 1-Wire network, and attempts to convert it to a floating-point value.
+
+  ## Params
+  - `path`: A string representing the path in the 1-Wire network.
+  - `opts`: A keyword list of options. It also accepts `:flags` option.
+
+  """
   def read_float(pid, path, opts \\ []) do
     read(pid, path, opts)
-    |> parse_float
+    |> maybe_parse_float
   end
 
   @doc """
     Reads the value at the specified path in the 1-Wire network, and attempts to convert it to a boolean value.
-    "0", 0, and "false" all convert to :false. "1", 1, and "true" all convert to :true. Other values return `{:error, "Not a boolean"}`
+    "0", 0, and "false" all convert to :false. "1", 1, and "true" all convert to :true. Other values return `{:error, :invalid_type}`.
 
     ## Params
-
     - `path`: A string representing the path in the 1-Wire network.
     - `opts`: A keyword list of options. It also accepts `:flags` option.
 
@@ -272,12 +293,20 @@ defmodule Ownet do
     {:reply, ret_val, client}
   end
 
-  defp parse_float({:error, reason}), do: {:error, reason}
-  defp parse_float({:ok, value}) do
+  defp maybe_parse_float({:error, reason}), do: {:error, reason}
+  defp maybe_parse_float({:ok, value}) do
     # Converts "        23.5" to 23.5
     case value |> String.trim() |> Float.parse() do
       :error -> {:error, :invalid_type}
-      {float, _} -> {:ok, float}
+      {float, ""} -> {:ok, float}
+    end
+  end
+
+  defp maybe_parse_int({:error, reason}), do: {:error, reason}
+  defp maybe_parse_int({:ok, value}) do
+    case value |> String.trim() |> Integer.parse() do
+      :error -> {:error, :invalid_type}
+      {val, ""} -> {:ok, val}
     end
   end
 end
