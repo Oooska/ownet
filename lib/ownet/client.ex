@@ -90,6 +90,8 @@ defmodule Ownet.Client do
   end
 
   defp reconnect_and_call(client, func) do
+    close_socket(client)
+
     case reconnect(client) do
       {:ok, client} ->
         {client, func.(client)}
@@ -116,6 +118,9 @@ defmodule Ownet.Client do
   defp lookup_error(index) do
     Ownet.ErrorMap.lookup(index)
   end
+
+  defp close_socket(%{socket: nil}), do: :ok
+  defp close_socket(%{socket: socket}), do: :gen_tcp.close(socket)
 
   # The error map would normally be loaded from the server, but for now we'll just hardcode it.
   # defp load_error_map(client) do
