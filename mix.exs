@@ -8,7 +8,7 @@ defmodule Ownet.MixProject do
       elixir: "~> 1.14",
       name: "Ownet",
       source_url: "https://github.com/oooska/ownet",
-      description: "An OWFS/owserver client library",
+      description: "An OWFS / owserver 1-wire client library",
       docs: &docs/0,
       start_permanent: Mix.env() == :prod,
       deps: deps()
