@@ -267,7 +267,9 @@ defmodule Ownet do
   def init(opts) do
     address = to_charlist(Keyword.get(opts, :address, ~c"localhost"))
     port = Keyword.get(opts, :port, 4304)
-    flags = Keyword.get(opts, :flags, [:persistence])
+    flags = Keyword.get(opts, :flags, [:persistence, :ownet])
+
+    flags = if :ownet in flags, do: flags, else: [:ownet | flags]
 
     {:ok, Client.new(address, port, flags)}
   end
@@ -301,6 +303,9 @@ defmodule Ownet do
     {client, ret_val} = Client.write(state, path, value, flags)
     {:reply, ret_val, client}
   end
+
+  @impl true
+  def handle_info(_msg, state), do: {:noreply, state}
 
   defp maybe_parse_float({:error, reason}), do: {:error, reason}
 
