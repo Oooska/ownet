@@ -4,6 +4,7 @@ defmodule Ownet.Socket do
   @moduledoc false
 
   @maxsize 65536
+  @recv_timeout 2000
   @type socket_error :: {:error, :inet.posix()}
   @type ownet_error :: {:ownet_error, integer()}
   @type error_tuple :: socket_error | ownet_error
@@ -119,7 +120,7 @@ defmodule Ownet.Socket do
 
   @spec receive_header(:gen_tcp.socket()) :: {:ok, Packet.header()} | socket_error()
   defp receive_header(socket) do
-    :gen_tcp.recv(socket, 24)
+    :gen_tcp.recv(socket, 24, @recv_timeout)
   end
 
   @spec receive_payload(:gen_tcp.socket(), Packet.header()) ::
@@ -128,7 +129,7 @@ defmodule Ownet.Socket do
     payload_size = Packet.payload_size(header)
 
     if payload_size > 0 do
-      case :gen_tcp.recv(socket, payload_size) do
+      case :gen_tcp.recv(socket, payload_size, @recv_timeout) do
         {:ok, payload} -> {:ok, header, payload}
         {:error, reason} -> {:error, reason}
       end
