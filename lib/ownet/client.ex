@@ -2,6 +2,8 @@ defmodule Ownet.Client do
   defstruct [:address, :port, :flags, :socket]
   alias Ownet.{Packet, Socket}
 
+  @moduledoc false
+
   @type t :: %__MODULE__{
           address: charlist(),
           port: integer(),

@@ -1,4 +1,6 @@
 defmodule Ownet.ErrorMap do
+  @moduledoc false
+
   @map %{
     0 => "Good result",
     1 => "Startup - command line parameters invalid",

@@ -57,6 +57,7 @@ defmodule Ownet.Packet do
           | :fdic
           | :fidc
           | :fic
+
   @type flag_list :: list(flag_value())
   # header consists of 6 * 32-bit integers
   @type header :: <<_::192>>

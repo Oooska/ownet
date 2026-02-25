@@ -1,6 +1,8 @@
 defmodule Ownet.Socket do
   alias Ownet.Packet
 
+  @moduledoc false
+
   @maxsize 65536
   @type socket_error :: {:error, :inet.posix()}
   @type ownet_error :: {:ownet_error, integer()}
@@ -89,9 +91,9 @@ defmodule Ownet.Socket do
   @spec send_and_receive_response(:gen_tcp.socket(), Packet.packet()) ::
           {:ok, Packet.header(), binary()} | error_tuple
   defp send_and_receive_response(socket, packet) do
-    with :ok <- send_message(socket, packet),
-         {:ok, header, payload} <- receive_next_message(socket) do
-      {:ok, header, payload}
+    case send_message(socket, packet) do
+      :ok -> receive_next_message(socket)
+      error -> error
     end
   end
 

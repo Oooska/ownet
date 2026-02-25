@@ -36,6 +36,22 @@ defmodule OwnetTest do
 
       assert {:error, :invalid_type} = Ownet.read_int(pid, "/test/int")
     end
+
+    test "drops trailing non-integer characters", %{pid: pid} do
+      expect(Ownet.Client, :read, fn :client_state, "/test/int", _flags ->
+        {:client_state, {:ok, "123abc"}}
+      end)
+
+      assert {:ok, 123} = Ownet.read_int(pid, "/test/int")
+    end
+
+    test "returns errors unchanged", %{pid: pid} do
+      expect(Ownet.Client, :read, fn :client_state, "/test/int", _flags ->
+        {:client_state, {:error, :timeout}}
+      end)
+
+      assert {:error, :timeout} = Ownet.read_int(pid, "/test/int")
+    end
   end
 
   describe "read_float/3" do

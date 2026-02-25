@@ -1,6 +1,5 @@
 defmodule SocketTest do
   use ExUnit.Case
-  require Logger
   alias Ownet.{Socket, Packet}
   import Mox
 
@@ -22,10 +21,10 @@ defmodule SocketTest do
     test "ping sends NOP command" do
       :gen_tcp
       |> expect(:send, fn _socket, data ->
-          header = Packet.decode_outgoing_packet(data)
-          assert header[:type] == 1
-          :ok
-        end)
+        header = Packet.decode_outgoing_packet(data)
+        assert header[:type] == 1
+        :ok
+      end)
       |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet()} end)
 
       assert Socket.ping(:fakesocket) == :ok
@@ -34,7 +33,9 @@ defmodule SocketTest do
     test "ping reads persistence flag on return header" do
       :gen_tcp
       |> expect(:send, fn _socket, _data -> :ok end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(flags: Packet.calculate_flag([:persistence]))} end)
+      |> expect(:recv, fn _socket, _num_bytes ->
+        {:ok, return_packet(flags: Packet.calculate_flag([:persistence]))}
+      end)
 
       assert Socket.ping(:fakesocket) == :ok
     end
@@ -61,10 +62,10 @@ defmodule SocketTest do
     test "present sends PRESENT command and returns true if path is present" do
       :gen_tcp
       |> expect(:send, fn _socket, data ->
-          header = Packet.decode_outgoing_packet(data)
-          assert header[:type] == 6
-          :ok
-        end)
+        header = Packet.decode_outgoing_packet(data)
+        assert header[:type] == 6
+        :ok
+      end)
       |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet()} end)
 
       {:ok, present} = Socket.present(:fakesocket, "/")
@@ -103,15 +104,17 @@ defmodule SocketTest do
     test "dir sends DIRALLSLASH command, reads and parses a list of directories" do
       :gen_tcp
       |> expect(:send, fn _socket, data ->
-          header = Packet.decode_outgoing_packet(data)
-          assert header[:type] == 9
-          :ok
-        end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: 36, size: 35)} end)
+        header = Packet.decode_outgoing_packet(data)
+        assert header[:type] == 9
+        :ok
+      end)
+      |> expect(:recv, fn _socket, _num_bytes ->
+        {:ok, return_packet(payloadsize: 36, size: 35)}
+      end)
       |> expect(:recv, fn _socket, num_bytes ->
-          assert num_bytes == 36
-          {:ok, "/43.E6ABD6010000/,/42.C2D154000000/\0"}
-        end)
+        assert num_bytes == 36
+        {:ok, "/43.E6ABD6010000/,/42.C2D154000000/\0"}
+      end)
 
       {:ok, paths} = Socket.dir(:fakesocket, "/")
 
@@ -122,7 +125,9 @@ defmodule SocketTest do
     test "dir parses a single returned directory" do
       :gen_tcp
       |> expect(:send, fn _socket, _data -> :ok end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: 18, size: 17)} end)
+      |> expect(:recv, fn _socket, _num_bytes ->
+        {:ok, return_packet(payloadsize: 18, size: 17)}
+      end)
       |> expect(:recv, fn _socket, _num_bytes -> {:ok, "/43.E6ABD6010000/\0"} end)
 
       {:ok, paths} = Socket.dir(:fakesocket, "/")
@@ -154,16 +159,18 @@ defmodule SocketTest do
     test "read sends a READ command, and returns the read response" do
       :gen_tcp
       |> expect(:send, fn _socket, data ->
-          header = Packet.decode_outgoing_packet(data)
-          assert header[:type] == 2
-          assert header[:payload] == "/28.32D7E0080000/temperature\0"
-          :ok
-        end)
-      |> expect(:recv, fn _socket, _bytes -> {:ok, return_packet(payloadsize: 12, ret: 12, size: 12)} end)
+        header = Packet.decode_outgoing_packet(data)
+        assert header[:type] == 2
+        assert header[:payload] == "/28.32D7E0080000/temperature\0"
+        :ok
+      end)
+      |> expect(:recv, fn _socket, _bytes ->
+        {:ok, return_packet(payloadsize: 12, ret: 12, size: 12)}
+      end)
       |> expect(:recv, fn _socket, bytes ->
-          assert bytes == 12
-          {:ok, "       21.25"}
-        end)
+        assert bytes == 12
+        {:ok, "       21.25"}
+      end)
 
       {:ok, value} = Socket.read(:fakesocket, "/28.32D7E0080000/temperature")
       assert value == "       21.25"
@@ -175,7 +182,9 @@ defmodule SocketTest do
       |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: -1)} end)
       |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: -1)} end)
       |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: -1)} end)
-      |> expect(:recv, fn _socket, _bytes -> {:ok, return_packet(payloadsize: 12, ret: 12, size: 12)} end)
+      |> expect(:recv, fn _socket, _bytes ->
+        {:ok, return_packet(payloadsize: 12, ret: 12, size: 12)}
+      end)
       |> expect(:recv, fn _socket, _bytes -> {:ok, "       21.25"} end)
 
       {:ok, value} = Socket.read(:fakesocket, "/28.32D7E0080000/temperature")
@@ -200,6 +209,7 @@ defmodule SocketTest do
 
     test "handles binary data properly" do
       binary_data = <<1, 2, 3, 4, 0>>
+
       :gen_tcp
       |> expect(:send, fn _socket, _data -> :ok end)
       |> expect(:recv, fn _socket, _num_bytes ->
@@ -212,6 +222,7 @@ defmodule SocketTest do
 
     test "handles large payloads", %{path: path} do
       large_data = String.duplicate("a", 65536)
+
       :gen_tcp
       |> expect(:send, fn _socket, _data -> :ok end)
       |> expect(:recv, fn _socket, _num_bytes ->
@@ -230,8 +241,8 @@ defmodule SocketTest do
         header = Packet.decode_outgoing_packet(data)
         assert header[:type] == 3
         assert header[:payload] == "/42.C2D154000000/PIO.A\01"
-          :ok
-        end)
+        :ok
+      end)
       |> expect(:recv, fn _socket, _bytes -> {:ok, return_packet(size: 1)} end)
 
       assert :ok == Socket.write(:fakesocket, "/42.C2D154000000/PIO.A", "1")
@@ -279,6 +290,7 @@ defmodule SocketTest do
 
     test "validates packet size matches data length" do
       test_value = "test"
+
       :gen_tcp
       |> expect(:send, fn _socket, data ->
         header = Packet.decode_outgoing_packet(data)
@@ -292,13 +304,12 @@ defmodule SocketTest do
   end
 
   defp return_packet(opts \\ []) do
-    #payloadsize \\ 0, ret \\ 0, flag \\ 0, size \\ 0, offset \\ 0, payload \\ <<>>)
+    # payloadsize \\ 0, ret \\ 0, flag \\ 0, size \\ 0, offset \\ 0, payload \\ <<>>)
     <<Keyword.get(opts, :version, 0)::32-integer-signed-big,
       Keyword.get(opts, :payloadsize, 0)::32-integer-signed-big,
       Keyword.get(opts, :ret, 0)::32-integer-signed-big,
       Keyword.get(opts, :flags, 0)::32-integer-signed-big,
       Keyword.get(opts, :size, 0)::32-integer-signed-big,
-      Keyword.get(opts, :offset, 0)::32-integer-signed-big
-    >>
+      Keyword.get(opts, :offset, 0)::32-integer-signed-big>>
   end
 end

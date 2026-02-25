@@ -16,11 +16,8 @@ defmodule IntegerationTest do
     {:ok, pid} = Ownet.start_link(name: Ownet)
 
     {:ok, dirs} = Ownet.dir(pid, "/")
-    IO.puts "dirs: #{inspect(dirs)}"
     [ds2408] = Enum.filter(dirs, fn dir -> dir =~ "/29." end) |> Enum.take(1)
     [ds18s20] = Enum.filter(dirs, fn dir -> dir =~ "/10." end) |> Enum.take(1)
-
-
 
     {:ok, %{pid: pid, ds2408: ds2408, ds18s20: ds18s20}}
   end
@@ -42,7 +39,8 @@ defmodule IntegerationTest do
       assert {:ok, endpoints} = Ownet.dir(pid, ds2408)
       assert length(endpoints) == 47
       pio_endpoints = Enum.filter(endpoints, fn endpoint -> endpoint =~ "/PIO." end)
-      assert length(pio_endpoints) == 10 #8 relays + .ALL + .BYTE
+      # 8 relays + .ALL + .BYTE
+      assert length(pio_endpoints) == 10
     end
   end
 
@@ -68,7 +66,10 @@ defmodule IntegerationTest do
       assert is_integer(value)
     end
 
-    test "attempting to read a value that is not an integer returns error", %{pid: pid, ds2408: ds2408} do
+    test "attempting to read a value that is not an integer returns error", %{
+      pid: pid,
+      ds2408: ds2408
+    } do
       assert {:error, :invalid_type} = Ownet.read_int(pid, ds2408 <> "type")
     end
 
@@ -85,10 +86,12 @@ defmodule IntegerationTest do
       assert is_float(fahrenheit)
     end
 
-    test "attempting to read a value that is not a float returns error", %{pid: pid, ds18s20: ds18s20} do
+    test "attempting to read a value that is not a float returns error", %{
+      pid: pid,
+      ds18s20: ds18s20
+    } do
       assert {:error, :invalid_type} = Ownet.read_float(pid, ds18s20 <> "type")
     end
-
   end
 
   describe "write operations" do
@@ -100,7 +103,6 @@ defmodule IntegerationTest do
     test "writing to path that is not writeable returns error", %{pid: pid, ds2408: ds2408} do
       assert {:error, "legacy - Not supported"} = Ownet.write(pid, ds2408 <> "address", "1")
     end
-
   end
 
   describe "presence detection" do
@@ -117,7 +119,8 @@ defmodule IntegerationTest do
 
   describe "error handling" do
     test "invalid path returns error", %{pid: pid} do
-      assert {:error, "Startup - command line parameters invalid"} = Ownet.read(pid, "/nonexistent/path")
+      assert {:error, "Startup - command line parameters invalid"} =
+               Ownet.read(pid, "/nonexistent/path")
     end
 
     test "invalid type conversion", %{pid: pid, ds2408: ds2408} do
