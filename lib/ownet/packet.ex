@@ -182,7 +182,12 @@ defmodule Ownet.Packet do
   def calculate_flag(flags, current_value \\ 0) do
     # Takes a list of flags and the current flag value, and computes a new flag value.
     # This will allow you to set invalid flag combinations (e.g. setting multiple temperature scales)
-    Enum.reduce(flags, current_value, fn flag, acc -> @flags[flag] ||| acc end)
+    Enum.reduce(flags, current_value, fn flag, acc ->
+      case @flags[flag] do
+        nil -> raise ArgumentError, "Invalid flag: #{inspect(flag)}"
+        value -> value ||| acc
+      end
+    end)
   end
 
   @spec persistence_granted?(header()) :: boolean()
@@ -211,8 +216,8 @@ defmodule Ownet.Packet do
   @spec flags(header()) :: integer()
   def flags(header) do
     # Returns the flag value of the supplied header.
-    <<_version_payload_type::96, header::32-integer-signed-big, _rest::binary>> = header
-    header
+    <<_version_payload_type::96, flags::32-integer-signed-big, _rest::binary>> = header
+    flags
   end
 
   @spec decode_outgoing_packet(header()) :: decoded_outgoing_packet_header()
