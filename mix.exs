@@ -1,17 +1,21 @@
 defmodule Ownet.MixProject do
   use Mix.Project
 
+  @version "0.1.0"
+  @source_url "https://github.com/oooska/ownet"
+
   def project do
     [
       app: :ownet,
-      version: "0.1.0",
+      version: @version,
       elixir: "~> 1.14",
       name: "Ownet",
-      source_url: "https://github.com/oooska/ownet",
+      source_url: @source_url,
       description: "An OWFS / owserver 1-wire client library",
-      docs: &docs/0,
+      docs: docs(),
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      package: package()
     ]
   end
 
@@ -31,7 +35,17 @@ defmodule Ownet.MixProject do
   defp docs() do
     [
       main: "readme",
-      extras: ["README.md"]
+      extras: ["README.md"],
+      source_url: @source_url,
+      source_ref: "v#{@version}"
+    ]
+  end
+
+  defp package() do
+    [
+      files: ["lib", "mix.exs", "README.md", "LICENSE"],
+      licenses: ["MIT"],
+      links: %{"GitHub" => @source_url}
     ]
   end
 end
