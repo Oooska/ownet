@@ -25,7 +25,7 @@ defmodule SocketTest do
         assert header[:type] == 1
         :ok
       end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet()} end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout -> {:ok, return_packet()} end)
 
       assert Socket.ping(:fakesocket) == :ok
     end
@@ -33,7 +33,7 @@ defmodule SocketTest do
     test "ping reads persistence flag on return header" do
       :gen_tcp
       |> expect(:send, fn _socket, _data -> :ok end)
-      |> expect(:recv, fn _socket, _num_bytes ->
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
         {:ok, return_packet(flags: Packet.calculate_flag([:persistence]))}
       end)
 
@@ -50,7 +50,7 @@ defmodule SocketTest do
     test "handles zero-length response" do
       :gen_tcp
       |> expect(:send, fn _socket, _data -> :ok end)
-      |> expect(:recv, fn _socket, _num_bytes ->
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
         {:ok, return_packet(payloadsize: 0)}
       end)
 
@@ -66,7 +66,7 @@ defmodule SocketTest do
         assert header[:type] == 6
         :ok
       end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet()} end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout -> {:ok, return_packet()} end)
 
       {:ok, present} = Socket.present(:fakesocket, "/")
       assert present
@@ -75,7 +75,7 @@ defmodule SocketTest do
     test "present returns false on ownet error" do
       :gen_tcp
       |> expect(:send, fn _socket, _data -> :ok end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(ret: -1)} end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout -> {:ok, return_packet(ret: -1)} end)
 
       {:ok, present} = Socket.present(:fakesocket, "/")
       assert present == false
@@ -94,7 +94,7 @@ defmodule SocketTest do
         assert String.ends_with?(data, <<0>>)
         :ok
       end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet()} end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout -> {:ok, return_packet()} end)
 
       assert {:ok, true} = Socket.present(:fakesocket, path)
     end
@@ -108,10 +108,10 @@ defmodule SocketTest do
         assert header[:type] == 9
         :ok
       end)
-      |> expect(:recv, fn _socket, _num_bytes ->
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
         {:ok, return_packet(payloadsize: 36, size: 35)}
       end)
-      |> expect(:recv, fn _socket, num_bytes ->
+      |> expect(:recv, fn _socket, num_bytes, _timeout ->
         assert num_bytes == 36
         {:ok, "/43.E6ABD6010000/,/42.C2D154000000/\0"}
       end)
@@ -125,10 +125,10 @@ defmodule SocketTest do
     test "dir parses a single returned directory" do
       :gen_tcp
       |> expect(:send, fn _socket, _data -> :ok end)
-      |> expect(:recv, fn _socket, _num_bytes ->
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
         {:ok, return_packet(payloadsize: 18, size: 17)}
       end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, "/43.E6ABD6010000/\0"} end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout -> {:ok, "/43.E6ABD6010000/\0"} end)
 
       {:ok, paths} = Socket.dir(:fakesocket, "/")
       assert "/43.E6ABD6010000/" in paths
@@ -137,7 +137,7 @@ defmodule SocketTest do
     test "dir command returns :ownet_error on owfs error" do
       :gen_tcp
       |> expect(:send, fn _socket, _data -> :ok end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(ret: -1)} end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout -> {:ok, return_packet(ret: -1)} end)
 
       {:ownet_error, reason} = Socket.dir(:fakesocket, "/badpath")
       assert reason == 1
@@ -146,10 +146,10 @@ defmodule SocketTest do
     test "handles empty directory list" do
       :gen_tcp
       |> expect(:send, fn _socket, _data -> :ok end)
-      |> expect(:recv, fn _socket, _num_bytes ->
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
         {:ok, return_packet(payloadsize: 1)}
       end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, <<0>>} end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout -> {:ok, <<0>>} end)
 
       assert {:ok, []} = Socket.dir(:fakesocket, "/")
     end
@@ -164,10 +164,10 @@ defmodule SocketTest do
         assert header[:payload] == "/28.32D7E0080000/temperature\0"
         :ok
       end)
-      |> expect(:recv, fn _socket, _bytes ->
+      |> expect(:recv, fn _socket, _bytes, _timeout ->
         {:ok, return_packet(payloadsize: 12, ret: 12, size: 12)}
       end)
-      |> expect(:recv, fn _socket, bytes ->
+      |> expect(:recv, fn _socket, bytes, _timeout ->
         assert bytes == 12
         {:ok, "       21.25"}
       end)
@@ -179,13 +179,19 @@ defmodule SocketTest do
     test "read waits for a packet with a payload" do
       :gen_tcp
       |> expect(:send, fn _socket, _data -> :ok end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: -1)} end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: -1)} end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(payloadsize: -1)} end)
-      |> expect(:recv, fn _socket, _bytes ->
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
+        {:ok, return_packet(payloadsize: -1)}
+      end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
+        {:ok, return_packet(payloadsize: -1)}
+      end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
+        {:ok, return_packet(payloadsize: -1)}
+      end)
+      |> expect(:recv, fn _socket, _bytes, _timeout ->
         {:ok, return_packet(payloadsize: 12, ret: 12, size: 12)}
       end)
-      |> expect(:recv, fn _socket, _bytes -> {:ok, "       21.25"} end)
+      |> expect(:recv, fn _socket, _bytes, _timeout -> {:ok, "       21.25"} end)
 
       {:ok, value} = Socket.read(:fakesocket, "/28.32D7E0080000/temperature")
       assert value == "       21.25"
@@ -194,7 +200,7 @@ defmodule SocketTest do
     test "read command returns :ownet_error on owfs error" do
       :gen_tcp
       |> expect(:send, fn _socket, _data -> :ok end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(ret: -1)} end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout -> {:ok, return_packet(ret: -1)} end)
 
       {:ownet_error, reason} = Socket.read(:fakesocket, "/badpath")
       assert reason == 1
@@ -212,10 +218,10 @@ defmodule SocketTest do
 
       :gen_tcp
       |> expect(:send, fn _socket, _data -> :ok end)
-      |> expect(:recv, fn _socket, _num_bytes ->
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
         {:ok, return_packet(payloadsize: byte_size(binary_data))}
       end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, binary_data} end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout -> {:ok, binary_data} end)
 
       assert {:ok, ^binary_data} = Socket.read(:fakesocket, "/binary/data")
     end
@@ -225,10 +231,10 @@ defmodule SocketTest do
 
       :gen_tcp
       |> expect(:send, fn _socket, _data -> :ok end)
-      |> expect(:recv, fn _socket, _num_bytes ->
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
         {:ok, return_packet(payloadsize: byte_size(large_data))}
       end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, large_data} end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout -> {:ok, large_data} end)
 
       assert {:ok, ^large_data} = Socket.read(:fakesocket, path)
     end
@@ -243,7 +249,7 @@ defmodule SocketTest do
         assert header[:payload] == "/42.C2D154000000/PIO.A\01"
         :ok
       end)
-      |> expect(:recv, fn _socket, _bytes -> {:ok, return_packet(size: 1)} end)
+      |> expect(:recv, fn _socket, _bytes, _timeout -> {:ok, return_packet(size: 1)} end)
 
       assert :ok == Socket.write(:fakesocket, "/42.C2D154000000/PIO.A", "1")
     end
@@ -251,7 +257,7 @@ defmodule SocketTest do
     test "write command returns :ownet_error on owfs error" do
       :gen_tcp
       |> expect(:send, fn _socket, _data -> :ok end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet(ret: -1)} end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout -> {:ok, return_packet(ret: -1)} end)
 
       {:ownet_error, reason} = Socket.write(:fakesocket, "/badpath", "1")
       assert reason == 1
@@ -271,7 +277,7 @@ defmodule SocketTest do
         assert String.ends_with?(header[:payload], "1")
         :ok
       end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet()} end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout -> {:ok, return_packet()} end)
 
       assert :ok = Socket.write(:fakesocket, "/switch", true)
     end
@@ -283,7 +289,7 @@ defmodule SocketTest do
         assert String.ends_with?(header[:payload], "0")
         :ok
       end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet()} end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout -> {:ok, return_packet()} end)
 
       assert :ok = Socket.write(:fakesocket, "/switch", :off)
     end
@@ -297,7 +303,7 @@ defmodule SocketTest do
         assert header[:size] == byte_size(test_value)
         :ok
       end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, return_packet()} end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout -> {:ok, return_packet()} end)
 
       assert :ok = Socket.write(:fakesocket, "/test", test_value)
     end

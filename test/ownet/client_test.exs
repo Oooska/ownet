@@ -14,14 +14,14 @@ defmodule ClientTest do
     test "commands connect to server when no socket exists" do
       :gen_tcp
       |> expect(:connect, fn _addr, _port, _opts ->
-          {:ok, :fakesocket}
-        end)
+        {:ok, :fakesocket}
+      end)
       |> expect(:send, fn _socket, _data ->
-          :ok
-        end)
-      |> expect(:recv, fn _socket, _num_bytes ->
-          {:ok, return_packet()}
-        end)
+        :ok
+      end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
+        {:ok, return_packet()}
+      end)
 
       client = Client.new("localhost")
       assert client.socket == nil
@@ -32,17 +32,18 @@ defmodule ClientTest do
     test "socket reconnects to server and retries command when closed" do
       :gen_tcp
       |> expect(:send, fn _socket, _data ->
-          {:error, :closed}
-        end)
+        {:error, :closed}
+      end)
+      |> expect(:close, fn _socket -> :ok end)
       |> expect(:connect, fn _addr, _port, _opts ->
-          {:ok, :reconnectedfakesocket}
-        end)
+        {:ok, :reconnectedfakesocket}
+      end)
       |> expect(:send, fn _socket, _data ->
-          :ok
-        end)
-      |> expect(:recv, fn _socket, _num_bytes ->
-          {:ok, return_packet()}
-        end)
+        :ok
+      end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
+        {:ok, return_packet()}
+      end)
 
       client = client_with_fake_socket()
       {client2, :ok} = Client.ping(client)
@@ -69,7 +70,7 @@ defmodule ClientTest do
         assert <<_::binary>> = data
         :ok
       end)
-      |> expect(:recv, fn _socket, _num_bytes ->
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
         {:ok, return_packet()}
       end)
 
@@ -86,7 +87,7 @@ defmodule ClientTest do
         assert <<_::binary>> = data
         :ok
       end)
-      |> expect(:recv, fn _socket, _num_bytes ->
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
         {:ok, return_packet()}
       end)
 
@@ -97,13 +98,14 @@ defmodule ClientTest do
     test "write command handles server errors" do
       :gen_tcp
       |> expect(:send, fn _socket, _data -> :ok end)
-      |> expect(:recv, fn _socket, _num_bytes ->
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
         {:ok, return_packet(ret: -1)}
       end)
 
       client = client_with_fake_socket()
+
       assert {^client, {:error, "Startup - command line parameters invalid"}} =
-        Client.write(client, "/bad/path", "test_value")
+               Client.write(client, "/bad/path", "test_value")
     end
 
     test "read command handles binary data properly" do
@@ -112,8 +114,8 @@ defmodule ClientTest do
 
       :gen_tcp
       |> expect(:send, fn _socket, _data -> :ok end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, header} end)
-      |> expect(:recv, fn _socket, _num_bytes -> {:ok, data} end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout -> {:ok, header} end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout -> {:ok, data} end)
 
       client = client_with_fake_socket()
       assert {^client, {:ok, ^binary_data}} = Client.read(client, "/test/path")
@@ -132,11 +134,11 @@ defmodule ClientTest do
     test "Client present command returns true when location exists" do
       :gen_tcp
       |> expect(:send, fn _socket, _data ->
-          :ok
-        end)
-      |> expect(:recv, fn _socket, _num_bytes ->
-          {:ok, return_packet(payload_size: 0, ret: -1, payload: "")}
-        end)
+        :ok
+      end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
+        {:ok, return_packet(payload_size: 0, ret: -1, payload: "")}
+      end)
 
       client = client_with_fake_socket()
       assert {^client, {:ok, false}} = Client.present(client, "/notpresent")
@@ -145,11 +147,11 @@ defmodule ClientTest do
     test "Client present command returns false when location does not exist" do
       :gen_tcp
       |> expect(:send, fn _socket, _data ->
-          :ok
-        end)
-      |> expect(:recv, fn _socket, _num_bytes ->
-          {:ok, return_packet(payload_size: 8, payload: "\0\0\0\0\0\0\0\0")}
-        end)
+        :ok
+      end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
+        {:ok, return_packet(payload_size: 8, payload: "\0\0\0\0\0\0\0\0")}
+      end)
 
       client = client_with_fake_socket()
       assert {^client, {:ok, true}} = Client.present(client, "/")
@@ -157,14 +159,15 @@ defmodule ClientTest do
 
     test "Client dir command returns a list of sensor directories" do
       {header, data} = return_packet_with_data("/28.32D7E0080000,/42.C2D154000000\0")
+
       :gen_tcp
       |> expect(:send, fn _socket, _data ->
-          :ok
-        end)
-      |> expect(:recv, fn _socket, _num_bytes ->
+        :ok
+      end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
         {:ok, header}
       end)
-      |> expect(:recv, fn _socket, _num_bytes ->
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
         {:ok, data}
       end)
 
@@ -175,27 +178,31 @@ defmodule ClientTest do
     test "Client dir command looks up error code on bad directory" do
       :gen_tcp
       |> expect(:send, fn _socket, _data ->
-          :ok
-        end)
-      |> expect(:recv, fn _socket, _num_bytes ->
+        :ok
+      end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
         {:ok, return_packet(ret: -1)}
       end)
 
       client = client_with_fake_socket()
-      assert {^client, {:error, "Startup - command line parameters invalid"}} = Client.dir(client, "/bad")
+
+      assert {^client, {:error, "Startup - command line parameters invalid"}} =
+               Client.dir(client, "/bad")
     end
 
     test "Client read command looks up error code on bad read" do
       :gen_tcp
       |> expect(:send, fn _socket, _data ->
-          :ok
-        end)
-      |> expect(:recv, fn _socket, _num_bytes ->
+        :ok
+      end)
+      |> expect(:recv, fn _socket, _num_bytes, _timeout ->
         {:ok, return_packet(ret: -1)}
       end)
 
       client = client_with_fake_socket()
-      assert {^client, {:error, "Startup - command line parameters invalid"}} = Client.read(client, "/bad")
+
+      assert {^client, {:error, "Startup - command line parameters invalid"}} =
+               Client.read(client, "/bad")
     end
   end
 
@@ -205,17 +212,16 @@ defmodule ClientTest do
   end
 
   defp return_packet(opts \\ []) do
-    #payloadsize \\ 0, ret \\ 0, flag \\ 0, size \\ 0, offset \\ 0, payload \\ <<>>)
+    # payloadsize \\ 0, ret \\ 0, flag \\ 0, size \\ 0, offset \\ 0, payload \\ <<>>)
     <<Keyword.get(opts, :version, 0)::32-integer-signed-big,
       Keyword.get(opts, :payloadsize, 0)::32-integer-signed-big,
       Keyword.get(opts, :ret, 0)::32-integer-signed-big,
       Keyword.get(opts, :flags, 0)::32-integer-signed-big,
       Keyword.get(opts, :size, 0)::32-integer-signed-big,
-      Keyword.get(opts, :offset, 0)::32-integer-signed-big
-    >>
+      Keyword.get(opts, :offset, 0)::32-integer-signed-big>>
   end
 
   defp return_packet_with_data(data) do
-    {return_packet(payloadsize: byte_size(data)+1, size: byte_size(data)), data}
+    {return_packet(payloadsize: byte_size(data) + 1, size: byte_size(data)), data}
   end
 end

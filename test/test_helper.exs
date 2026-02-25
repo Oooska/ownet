@@ -1,6 +1,7 @@
 defmodule GenTCPMock do
   @callback send(:gen_tcp.socket(), binary()) :: :ok | {:error, :inet.posix()}
-  @callback recv(:gen_tcp.socket(), integer()) :: {:ok, binary()} | {:error, :inet.posix()}
+  @callback recv(:gen_tcp.socket(), integer(), integer()) ::
+              {:ok, binary()} | {:error, :inet.posix()}
   @callback close(:gen_tcp.socket()) :: :ok
   @callback connect(charlist, integer, :gen_tcp.opts()) ::
               {:ok, :gen_tcp.socket()} | {:error, :inet.posix()}
